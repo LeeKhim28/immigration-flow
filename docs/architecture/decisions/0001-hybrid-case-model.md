@@ -1,6 +1,6 @@
 # ADR 0001: Hybrid Generic Case and Service Profile
 
-**Status:** Proposed pending written-spec review  
+**Status:** Accepted  
 **Date:** 2026-08-30
 
 ## Context
