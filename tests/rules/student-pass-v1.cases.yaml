@@ -1,0 +1,175 @@
+schema_version: 1
+rule_set_id: student-pass-v1-new-higher-education
+rule_set_version: 1.0.0
+merge_strategy: json_merge_patch
+
+base_facts:
+  application:
+    type: new
+    service_region: peninsular_malaysia
+  applicant:
+    nationality_code: GB
+    location_at_submission: outside_malaysia
+  institution:
+    type: UA
+    international_student_authorization_verified: true
+  programme:
+    accreditation_verified: true
+  passport:
+    validity_months_at_submission: 24
+  documents:
+    photo:
+      present: true
+      width_mm: 35
+      height_mm: 45
+      background: white
+      colour: true
+      age_months: 2
+      professional_attested: true
+      unedited_attested: true
+    passport_biodata: {present: true}
+    passport_visa_pages: {present: true}
+    passport_observation_pages: {present: true}
+    passport_all_pages: {present: true}
+    offer_letter: {present: true}
+    health_declaration: {present: true}
+    academic_records: {present: true}
+    english_evidence: {present: true, type: IELTS}
+    yellow_fever_certificate: {present: false}
+  institution_documents:
+    noc: {confirmed: true}
+    loe: {confirmed: true}
+    personal_bond: {complete: true}
+  datasets:
+    sev_country_list: {age_days: 1}
+  travel:
+    document_type: ordinary_passport
+    yellow_fever_certificate_required: false
+    sev_required: false
+  workflow:
+    eval_approved: true
+    sev_obtained: true
+    arrived_in_malaysia: true
+    emgs_support_letter_received: true
+  medical:
+    screening_completed: true
+    days_since_arrival: 3
+  insurance:
+    locally_valid: true
+    covers_required_period: true
+
+cases:
+  - id: happy_path_preparation_passes
+    description: A fully prepared synthetic UA case triggers no findings.
+    overrides: {}
+    expected:
+      default_outcome: pass
+      triggered_rule_ids: []
+
+  - id: applicant_inside_malaysia_is_outside_v1
+    description: An in-country applicant is routed away from this new-application V1 journey.
+    overrides:
+      applicant: {location_at_submission: inside_malaysia}
+    expected:
+      must_include: [SPV1-RULE-001]
+      outcome: unsupported_scope
+
+  - id: sarawak_case_is_outside_v1
+    description: Sarawak-specific documents and process are deliberately excluded.
+    overrides:
+      application: {service_region: sarawak}
+    expected:
+      must_include: [SPV1-RULE-001]
+      outcome: unsupported_scope
+
+  - id: passport_below_minimum
+    description: Seventeen months of passport validity requires action.
+    overrides:
+      passport: {validity_months_at_submission: 17}
+    expected:
+      must_include: [SPV1-RULE-003]
+      outcome: action_required
+
+  - id: iran_requires_all_pages_and_loe
+    description: An Iranian case missing both items creates applicant and institution tasks.
+    overrides:
+      applicant: {nationality_code: IR}
+      documents: {passport_all_pages: {present: false}}
+      institution_documents: {loe: {confirmed: false}}
+    expected:
+      must_include: [SPV1-RULE-005, SPV1-RULE-007]
+      outcome: action_required
+
+  - id: sudan_requires_all_pages_and_noc
+    description: A Sudanese case missing both items creates applicant and institution tasks.
+    overrides:
+      applicant: {nationality_code: SD}
+      documents: {passport_all_pages: {present: false}}
+      institution_documents: {noc: {confirmed: false}}
+    expected:
+      must_include: [SPV1-RULE-005, SPV1-RULE-006]
+      outcome: action_required
+
+  - id: stale_sev_dataset_prevents_answer
+    description: A stale dynamic country list forces a fresh official cross-check.
+    overrides:
+      applicant: {nationality_code: CN}
+      datasets: {sev_country_list: {age_days: 31}}
+      travel: {sev_required: true}
+      workflow: {sev_obtained: false}
+    expected:
+      must_include: [SPV1-RULE-011]
+      must_not_include: [SPV1-RULE-012]
+      outcome: manual_review
+
+  - id: china_case_needs_sev_after_eval
+    description: A fresh dataset and approved eVAL create the outstanding SEV task.
+    overrides:
+      applicant: {nationality_code: CN}
+      travel: {sev_required: true}
+      workflow: {sev_obtained: false}
+    expected:
+      must_include: [SPV1-RULE-012]
+      must_not_include: [SPV1-RULE-011, SPV1-RULE-013]
+      outcome: action_required
+
+  - id: sev_cannot_precede_eval
+    description: A visa-required applicant cannot be treated as SEV-ready before eVAL.
+    overrides:
+      applicant: {nationality_code: CN}
+      travel: {sev_required: true}
+      workflow: {eval_approved: false, sev_obtained: false}
+    expected:
+      must_include: [SPV1-RULE-013]
+      must_not_include: [SPV1-RULE-012]
+      outcome: action_required
+
+  - id: medical_due_within_conservative_window
+    description: An arrived student without screening receives an immediate action task.
+    overrides:
+      medical: {screening_completed: false, days_since_arrival: 5}
+      workflow: {emgs_support_letter_received: false}
+    expected:
+      must_include: [SPV1-RULE-014, SPV1-RULE-016]
+      must_not_include: [SPV1-RULE-015]
+      outcome: action_required
+
+  - id: medical_deadline_conflict_requires_review
+    description: Day eight invokes human review instead of automated rejection.
+    overrides:
+      medical: {screening_completed: false, days_since_arrival: 8}
+      workflow: {emgs_support_letter_received: false}
+    expected:
+      must_include: [SPV1-RULE-015, SPV1-RULE-016]
+      outcome: manual_review
+
+  - id: endorsement_prerequisites_incomplete
+    description: Missing bond, local coverage, and support letter prevent endorsement readiness.
+    overrides:
+      institution_documents: {personal_bond: {complete: false}}
+      insurance: {locally_valid: false, covers_required_period: false}
+      workflow: {emgs_support_letter_received: false}
+    expected:
+      must_include: [SPV1-RULE-016]
+      outcome: action_required
+
