@@ -62,6 +62,8 @@ User-facing explanation with citations and limitations
 - Eligibility determinations
 - Coverage of every Immigration Department service
 
-## Next step
+## Phase 2A handoff
 
-Use the reviewed requirements and rule facts to design the first ERD. PostgreSQL should enter only after the case, applicant, institution, document, source, requirement, rule-version, evaluation, task, and audit relationships are agreed.
+The logical Student Pass V1 data model is approved in `docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md`. Its ERD, data dictionary, and architecture decisions define the generic-case/service-profile model, immutable knowledge versions, official-submission cutoff behavior, and re-evaluation policy.
+
+The next milestone is Phase 2B: translate the approved logical model into reviewed PostgreSQL types, constraints, migrations, and database-level tests without expanding the product beyond the Student Pass V1 vertical.
