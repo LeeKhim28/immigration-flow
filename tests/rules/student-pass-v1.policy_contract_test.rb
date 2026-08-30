@@ -47,6 +47,13 @@ class StudentPassV1PolicyContractTest < Minitest::Test
     refute_match(/working-day interpretation/i, action.fetch("message"))
   end
 
+  def test_medical_rules_retain_required_requirement_and_source_provenance
+    [@due_rule, @overdue_rule].each do |rule|
+      assert_equal ["SPV1-REQ-014"], rule.fetch("requirement_ids")
+      assert_equal ["MY-IMMIGRATION-STUDENT-PASS", "MY-EMGS-MEDICAL-SCREENING"], rule.fetch("source_ids")
+    end
+  end
+
   private
 
   def condition_for(rule, fact)
