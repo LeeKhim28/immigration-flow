@@ -1,0 +1,62 @@
+schema_version: 1
+last_registry_reviewed_at: "2026-08-30"
+
+sources:
+  - id: MY-IMMIGRATION-OFFICIAL-PORTAL
+    authority: Immigration Department of Malaysia
+    title: Official Portal of the Immigration Department of Malaysia
+    canonical_url: https://www.imi.gov.my/index.php/en/home/
+    jurisdiction: Malaysia
+    topics:
+      - passport
+      - visa
+      - pass
+      - permit
+    source_type: official_portal
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Entry point for Immigration Department services; register specific service pages separately before deriving rules.
+
+  - id: MY-EMGS-VISA-PORTAL
+    authority: Education Malaysia Global Services
+    title: Education Malaysia Visa Portal
+    canonical_url: https://visa.educationmalaysia.gov.my/
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - graduate_pass
+    source_type: official_service_portal
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Official service-provider portal; register individual guidelines and dated documents before implementing requirements.
+
+  - id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+    authority: Education Malaysia Global Services
+    title: Required Documents for a Student Visa Application
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/required-documents
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - required_documents
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: null
+    effective_from: null
+    effective_to: null
+    status: candidate
+    supersedes: null
+    notes: Candidate for detailed research. Do not encode rules until content, applicability, and dates are reviewed.
+
