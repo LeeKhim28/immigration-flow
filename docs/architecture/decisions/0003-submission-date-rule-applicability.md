@@ -1,6 +1,6 @@
 # ADR 0003: Official Accepted Submission Date Determines Rule Applicability
 
-**Status:** Proposed pending written-spec review  
+**Status:** Accepted  
 **Date:** 2026-08-30
 
 ## Context
