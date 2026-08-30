@@ -12,9 +12,8 @@ New international students must attend an in-country medical screening at an EMG
 
 ## Conflict
 
-The Immigration Student Pass page uses seven days without the word “working.” V1 uses the stricter seven-calendar-day reminder and labels the deadline interpretation. A late or ambiguous case is routed to a person; it is not automatically rejected.
+The Immigration Student Pass page uses seven days without the word “working.” ImmigrationFlow V1 preserves both official statements and uses the stricter seven-calendar-day operational deadline for reminders. An overdue case receives urgent human follow-up and is never automatically rejected.
 
 ## Rule use
 
 May support post-arrival deadline reminders, panel-clinic validation, and endorsement readiness. Medical outcomes remain outside the rule engine.
-
