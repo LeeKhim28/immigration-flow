@@ -224,7 +224,7 @@ rules:
 
   - id: SPV1-RULE-014
     priority: 140
-    description: Track the conservative post-arrival medical deadline.
+    description: Track the seven-calendar-day post-arrival medical deadline.
     when:
       all:
         - {fact: workflow.arrived_in_malaysia, operator: eq, value: true}
@@ -233,14 +233,14 @@ rules:
     then:
       outcome: action_required
       code: POST_ARRIVAL_MEDICAL_DUE
-      message: Complete the EMGS panel-clinic screening immediately and before endorsement.
+      message: Complete the EMGS panel-clinic screening within seven calendar days after arrival and before endorsement.
       create_task: schedule_panel_clinic_screening
     requirement_ids: [SPV1-REQ-014]
     source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-MEDICAL-SCREENING]
 
   - id: SPV1-RULE-015
     priority: 150
-    description: Route an apparently late medical screening to human review because source wording differs.
+    description: Escalate an overdue post-arrival medical screening for urgent human follow-up.
     when:
       all:
         - {fact: workflow.arrived_in_malaysia, operator: eq, value: true}
@@ -248,9 +248,9 @@ rules:
         - {fact: medical.days_since_arrival, operator: gte, value: 8}
     then:
       outcome: manual_review
-      code: MEDICAL_DEADLINE_REVIEW
-      message: The conservative seven-calendar-day reminder has passed; verify the official working-day interpretation and case status.
-      create_task: urgent_medical_deadline_review
+      code: POST_ARRIVAL_MEDICAL_OVERDUE
+      message: The seven-calendar-day operational deadline has passed; arrange urgent follow-up and verify the case status.
+      create_task: urgent_post_arrival_medical_follow_up
     requirement_ids: [SPV1-REQ-014]
     source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-MEDICAL-SCREENING]
 
