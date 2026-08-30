@@ -1,0 +1,232 @@
+schema_version: 1
+requirement_set_id: student-pass-v1-new-higher-education
+version: 1.0.0
+scope:
+  application_type: new
+  applicant_location_at_submission: outside_malaysia
+  education_sector: higher_education
+  institution_types: [UA, IPTS]
+  service_region: peninsular_malaysia
+  excluded:
+    - renewal
+    - variation
+    - progression
+    - dependant
+    - school
+    - language_or_training_centre
+    - sabah
+    - sarawak
+
+requirements:
+  - id: SPV1-REQ-001
+    category: scope
+    stage: intake
+    actor: applicant
+    level: required
+    statement: The applicant must be outside Malaysia when the new higher-education Student Pass application is submitted.
+    condition: always
+    machine_handling: Unsupported inputs are routed to a different journey; they are not marked ineligible.
+    sources:
+      - source_id: MY-IMMIGRATION-STUDENT-PASS
+        locator: Higher Education Institutions, item 1.1(d)
+
+  - id: SPV1-REQ-002
+    category: manual_verification
+    stage: intake
+    actor: institution
+    level: manual_check
+    statement: The selected institution and programme must satisfy the applicable approval and international-student-enrolment conditions.
+    condition: {field: institution.type, operator: in, value: [UA, IPTS]}
+    machine_handling: Require recorded human confirmation and evidence; do not infer MOHA authorization from MQR alone.
+    sources:
+      - source_id: MY-IMMIGRATION-STUDENT-PASS
+        locator: Higher Education Institutions, items 1.1(a)-(b)
+      - source_id: MY-MQA-MQR-SEARCH
+        locator: Qualification search and provisional-accreditation notice
+
+  - id: SPV1-REQ-003
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: required
+    statement: Provide an offer or acceptance letter from the university or college.
+    condition: always
+    machine_handling: Check presence and route content verification to institution review.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — Offer Letter
+
+  - id: SPV1-REQ-004
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: required
+    statement: Provide passport biodata, visa-information, and observation pages; passport validity must be at least 18 months.
+    condition: always
+    machine_handling: Check document presence and calculate whole months remaining as of submission date.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — A copy of your Passport
+
+  - id: SPV1-REQ-005
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: conditional
+    statement: Applicants from Libya, Iran, Iraq, Somalia, Sudan, Syria, or Yemen must provide every passport page.
+    condition: {field: applicant.nationality_code, operator: in_dataset, value: full_passport_pages_country_codes}
+    machine_handling: Require passport_all_pages when the normalized nationality code matches.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — passport country note
+
+  - id: SPV1-REQ-006
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: required
+    statement: Provide a completed Health Declaration Form.
+    condition: always
+    machine_handling: Check presence only; do not interpret medical information.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — Health Declaration Form
+
+  - id: SPV1-REQ-007
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: required
+    statement: Provide relevant previous academic certificates and transcripts.
+    condition: always
+    machine_handling: Check presence; institution determines course-specific sufficiency.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — academic certificates and transcripts
+
+  - id: SPV1-REQ-008
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: required
+    statement: Provide accepted English-language evidence for the VAL application.
+    condition: always
+    machine_handling: Validate evidence type against the reviewed list; never infer a required score.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — English Language Requirement
+
+  - id: SPV1-REQ-009
+    category: document
+    stage: pre_submission
+    actor: applicant
+    level: required
+    statement: Provide one compliant, recent colour passport photograph on a plain white background at 35 mm by 45 mm.
+    condition: always
+    machine_handling: Deterministic metadata and attestation checks are advisory; visual/final acceptance is manual.
+    sources:
+      - source_id: MY-EMGS-PASSPORT-PHOTO-GUIDELINES
+        locator: Passport Photo Guidelines
+
+  - id: SPV1-REQ-010
+    category: document
+    stage: pre_submission
+    actor: institution
+    level: conditional
+    statement: A Sudanese applicant requires an institution-managed No-Objection Certificate.
+    condition: {field: applicant.nationality_code, operator: eq, value: SD}
+    machine_handling: Create an institution task; do not request the applicant to obtain it directly.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — No-Objection Certificate
+
+  - id: SPV1-REQ-011
+    category: document
+    stage: pre_submission
+    actor: institution
+    level: conditional
+    statement: An Iranian applicant requires an institution-managed Letter of Eligibility.
+    condition: {field: applicant.nationality_code, operator: eq, value: IR}
+    machine_handling: Create an institution task; record the resulting EMGS confirmation.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — Letter Of Eligibility
+
+  - id: SPV1-REQ-012
+    category: document
+    stage: pre_entry
+    actor: applicant
+    level: conditional
+    statement: Carry valid yellow-fever vaccination evidence when the current official country-risk classification requires it.
+    condition: {field: travel.yellow_fever_certificate_required, operator: eq, value: true}
+    machine_handling: Use a freshly verified external classification; the country list is not frozen in this rule set.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — yellow fever note
+      - source_id: MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY
+        locator: Section 4 — Yellow Fever Vaccination Certificate
+
+  - id: SPV1-REQ-013
+    category: workflow
+    stage: post_eval
+    actor: applicant
+    level: conditional
+    statement: When an SEV is required, apply only after eVAL approval and before entering Malaysia.
+    condition: {field: travel.sev_required, operator: eq, value: true}
+    machine_handling: Evaluate from a fresh nationality dataset and block out-of-order workflow steps.
+    sources:
+      - source_id: MY-IMMIGRATION-STUDENT-PASS
+        locator: Higher Education Institutions, item 1.1(f)
+      - source_id: MY-EMGS-SEV-REQUIRED-COUNTRIES
+        locator: SEV Required Countries list
+
+  - id: SPV1-REQ-014
+    category: deadline
+    stage: post_arrival
+    actor: applicant
+    level: required
+    statement: Complete the post-arrival medical screening at an EMGS panel clinic promptly after arrival and before endorsement.
+    condition: always
+    machine_handling: Set a conservative reminder at arrival plus seven calendar days; late cases require human review because official wording differs.
+    sources:
+      - source_id: MY-IMMIGRATION-STUDENT-PASS
+        locator: Higher Education Institutions, item 1.1(h)
+      - source_id: MY-EMGS-MEDICAL-SCREENING
+        locator: Post-Arrival/In-Country Medical Screening — New International Students
+
+  - id: SPV1-REQ-015
+    category: document
+    stage: endorsement
+    actor: institution
+    level: required
+    statement: The institution must complete the Personal Bond for Student Pass endorsement.
+    condition: always
+    machine_handling: Track as institution-owned endorsement readiness, not an initial applicant upload blocker.
+    sources:
+      - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+        locator: New Student Pass Application — Personal Bond
+
+  - id: SPV1-REQ-016
+    category: eligibility
+    stage: endorsement
+    actor: shared
+    level: required
+    statement: The student must have locally valid medical and health insurance coverage for the applicable study period.
+    condition: always
+    machine_handling: Validate coverage origin and dates; do not recommend a commercial plan.
+    sources:
+      - source_id: MY-EMGS-INSURANCE-2026
+        locator: Compulsory insurance and Educational Institutions sections
+
+  - id: SPV1-REQ-017
+    category: workflow
+    stage: endorsement
+    actor: institution
+    level: required
+    statement: Endorsement preparation follows successful medical screening and receipt of the EMGS support letter.
+    condition: always
+    machine_handling: Prevent the prototype workflow from marking endorsement-ready until both recorded conditions are met.
+    sources:
+      - source_id: MY-IMMIGRATION-STUDENT-PASS
+        locator: Higher Education Institutions, item 1.1(i)
+

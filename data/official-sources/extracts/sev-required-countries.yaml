@@ -1,0 +1,83 @@
+schema_version: 1
+dataset_id: emgs-sev-required-country-codes
+source_id: MY-EMGS-SEV-REQUIRED-COUNTRIES
+retrieved_at: "2026-08-30"
+max_age_days: 30
+normalization: ISO_3166_1_alpha_2_with_XK_for_Kosovo
+country_codes:
+  - DZ
+  - AR
+  - AT
+  - BH
+  - BD
+  - BE
+  - BA
+  - BR
+  - KH
+  - CM
+  - CL
+  - CN
+  - HR
+  - CU
+  - CY
+  - CZ
+  - EG
+  - FI
+  - FR
+  - DE
+  - GH
+  - GN
+  - HK
+  - HU
+  - IN
+  - ID
+  - IR
+  - IT
+  - JP
+  - JO
+  - KZ
+  - XK
+  - KW
+  - LA
+  - LB
+  - MT
+  - MX
+  - MA
+  - MZ
+  - MM
+  - NP
+  - NG
+  - OM
+  - PK
+  - PE
+  - PH
+  - PL
+  - QA
+  - RO
+  - RU
+  - RW
+  - WS
+  - SA
+  - SN
+  - RS
+  - SL
+  - KR
+  - SS
+  - ES
+  - LK
+  - SD
+  - SE
+  - TW
+  - TH
+  - TL
+  - TR
+  - TM
+  - UA
+  - AE
+  - UZ
+  - VE
+  - VN
+notes:
+  - The source warns that the list can change without prior notice.
+  - A fresh Immigration Department cross-check is required before presenting a definitive user-facing answer.
+
