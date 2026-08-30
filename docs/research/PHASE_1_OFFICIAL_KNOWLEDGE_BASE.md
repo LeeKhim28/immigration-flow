@@ -4,6 +4,12 @@
 
 Create a trustworthy, version-controlled evidence layer for the first ImmigrationFlow journey before implementing eligibility rules, retrieval-augmented generation, or application workflows.
 
+## Completion status
+
+The bounded Student Pass V1 knowledge package is complete as of 2026-08-30 for new UA/IPTS higher-education applicants applying from outside Malaysia for Peninsular Malaysia. It includes reviewed sources, normalized requirements, a rule contract, deterministic rules, dynamic-dataset freshness controls, and synthetic cases.
+
+Renewal, variation, progression, dependants, school/language/training-centre applications, and Sabah/Sarawak processes remain explicitly unsupported by this rule set.
+
 ## Why it starts in GitHub
 
 The Phase 1 knowledge base is intentionally file-based. Git provides reviewable diffs, history, source attribution, and a simple portfolio narrative. It is not the production query database.
@@ -58,5 +64,4 @@ User-facing explanation with citations and limitations
 
 ## Next step
 
-Review the Student Pass and Graduate Pass sources one by one, create normalized extracts for the first applicant journey, then design the versioned rule format. Only after those extracts pass review should the project implement search or AI-assisted explanations.
-
+Use the reviewed requirements and rule facts to design the first ERD. PostgreSQL should enter only after the case, applicant, institution, document, source, requirement, rule-version, evaluation, task, and audit relationships are agreed.
