@@ -7,7 +7,7 @@
 - Cite official source IDs in rule definitions and tests.
 - Separate deterministic rules from AI prompts and model output.
 - Add or update tests whenever behavior changes.
-- Record important architectural trade-offs in `docs/decisions/`.
+- Record important architectural trade-offs in `docs/architecture/decisions/`.
 
 ## Suggested commit style
 
@@ -29,4 +29,3 @@ refactor: separate eligibility rules from AI explanation
 ## Branches
 
 Use short-lived branches such as `feat/case-model` or `docs/source-registry`. Keep the default branch releasable and avoid committing generated artifacts unless they are intentionally reviewed deliverables.
-
