@@ -1,7 +1,7 @@
 # Phase 2A — Student Pass V1 Data Model Design
 
-**Status:** Approved in conversation; awaiting review of this written specification  
-**Date:** 2026-08-30  
+**Status:** Approved  
+**Approved:** 2026-08-30  
 **Scope:** Logical data design only. PostgreSQL schemas, migrations, APIs, and application code belong to Phase 2B.
 
 ## 1. Goal
