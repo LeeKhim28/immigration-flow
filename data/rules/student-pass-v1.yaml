@@ -1,0 +1,273 @@
+schema_version: 1
+rule_set_id: student-pass-v1-new-higher-education
+version: 1.0.0
+effective_from: "2026-08-30"
+scope:
+  application_type: new
+  institution_types: [UA, IPTS]
+  applicant_location: outside_malaysia
+  service_region: peninsular_malaysia
+outcome_contract: [pass, action_required, manual_review, unsupported_scope]
+default_outcome: pass
+
+rules:
+  - id: SPV1-RULE-001
+    priority: 10
+    description: Reject unsupported application journeys from this V1 evaluator.
+    when:
+      any:
+        - {fact: application.type, operator: neq, value: new}
+        - {fact: institution.type, operator: not_in, value: [UA, IPTS]}
+        - {fact: applicant.location_at_submission, operator: neq, value: outside_malaysia}
+        - {fact: application.service_region, operator: neq, value: peninsular_malaysia}
+    then:
+      outcome: unsupported_scope
+      code: JOURNEY_NOT_SUPPORTED
+      message: This rule set covers only a new UA/IPTS higher-education application submitted while outside Malaysia for Peninsular Malaysia.
+      create_task: route_to_supported_journey_or_human
+    requirement_ids: [SPV1-REQ-001]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS]
+
+  - id: SPV1-RULE-002
+    priority: 20
+    description: Require recorded verification of institution authorization and programme status.
+    when:
+      any:
+        - {fact: institution.international_student_authorization_verified, operator: neq, value: true}
+        - {fact: programme.accreditation_verified, operator: neq, value: true}
+    then:
+      outcome: manual_review
+      code: INSTITUTION_OR_PROGRAMME_VERIFICATION_REQUIRED
+      message: A human must verify the institution's authorization and the programme evidence before the case is preparation-ready.
+      create_task: verify_institution_and_programme
+    requirement_ids: [SPV1-REQ-002]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-MQA-MQR-SEARCH]
+
+  - id: SPV1-RULE-003
+    priority: 30
+    description: Require at least 18 months of passport validity at submission.
+    when:
+      any:
+        - {fact: passport.validity_months_at_submission, operator: absent}
+        - {fact: passport.validity_months_at_submission, operator: lte, value: 17}
+    then:
+      outcome: action_required
+      code: PASSPORT_VALIDITY_BELOW_18_MONTHS
+      message: The passport must have at least 18 months of validity when the application is submitted.
+      create_task: renew_or_verify_passport
+    requirement_ids: [SPV1-REQ-004]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS]
+
+  - id: SPV1-RULE-004
+    priority: 40
+    description: Require the core applicant document set.
+    when:
+      any:
+        - {fact: documents.photo.present, operator: neq, value: true}
+        - {fact: documents.passport_biodata.present, operator: neq, value: true}
+        - {fact: documents.passport_visa_pages.present, operator: neq, value: true}
+        - {fact: documents.passport_observation_pages.present, operator: neq, value: true}
+        - {fact: documents.offer_letter.present, operator: neq, value: true}
+        - {fact: documents.health_declaration.present, operator: neq, value: true}
+        - {fact: documents.academic_records.present, operator: neq, value: true}
+        - {fact: documents.english_evidence.present, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: CORE_DOCUMENTS_INCOMPLETE
+      message: One or more core Student Pass preparation documents are missing.
+      create_task: complete_core_document_checklist
+    requirement_ids: [SPV1-REQ-003, SPV1-REQ-004, SPV1-REQ-006, SPV1-REQ-007, SPV1-REQ-008, SPV1-REQ-009]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS, MY-EMGS-PASSPORT-PHOTO-GUIDELINES]
+
+  - id: SPV1-RULE-005
+    priority: 50
+    description: Require all passport pages for specified nationalities.
+    when:
+      all:
+        - {fact: applicant.nationality_code, operator: in, value: [LY, IR, IQ, SO, SD, SY, YE]}
+        - {fact: documents.passport_all_pages.present, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: ALL_PASSPORT_PAGES_REQUIRED
+      message: Applicants of this nationality must provide every passport page.
+      create_task: upload_all_passport_pages
+    requirement_ids: [SPV1-REQ-005]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS]
+
+  - id: SPV1-RULE-006
+    priority: 60
+    description: Create the institution-managed Sudan NOC task.
+    when:
+      all:
+        - {fact: applicant.nationality_code, operator: eq, value: SD}
+        - {fact: institution_documents.noc.confirmed, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: SUDAN_NOC_REQUIRED
+      message: The institution must arrange the Sudan No-Objection Certificate.
+      create_task: institution_arrange_sudan_noc
+    requirement_ids: [SPV1-REQ-010]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS]
+
+  - id: SPV1-RULE-007
+    priority: 70
+    description: Create the institution-managed Iran LOE task.
+    when:
+      all:
+        - {fact: applicant.nationality_code, operator: eq, value: IR}
+        - {fact: institution_documents.loe.confirmed, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: IRAN_LOE_REQUIRED
+      message: The institution must arrange and record the Iran Letter of Eligibility process.
+      create_task: institution_arrange_iran_loe
+    requirement_ids: [SPV1-REQ-011]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS]
+
+  - id: SPV1-RULE-008
+    priority: 80
+    description: Validate the accepted English evidence family without inventing a score.
+    when:
+      all:
+        - {fact: documents.english_evidence.present, operator: eq, value: true}
+        - {fact: documents.english_evidence.type, operator: not_in, value: [MUET, IELTS, IELTS_ONLINE, TOEFL_IBT, TOEFL_ESSENTIALS, PTE_ACADEMIC, PTE_ACADEMIC_ONLINE, CAMBRIDGE_B1_PRELIMINARY, CAMBRIDGE_B2_FIRST, CAMBRIDGE_C1_ADVANCED, CAMBRIDGE_C2_PROFICIENCY, CAMBRIDGE_LINGUASKILL, OET, OET_ONLINE, ELS_CIEP]}
+    then:
+      outcome: manual_review
+      code: ENGLISH_EVIDENCE_TYPE_UNRECOGNIZED
+      message: The supplied English evidence type is not in the reviewed EMGS list; verify it with the institution or EMGS.
+      create_task: verify_english_evidence
+    requirement_ids: [SPV1-REQ-008]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS]
+
+  - id: SPV1-RULE-009
+    priority: 90
+    description: Flag non-compliant photo metadata or attestations for correction/review.
+    when:
+      any:
+        - {fact: documents.photo.width_mm, operator: neq, value: 35}
+        - {fact: documents.photo.height_mm, operator: neq, value: 45}
+        - {fact: documents.photo.background, operator: neq, value: white}
+        - {fact: documents.photo.colour, operator: neq, value: true}
+        - {fact: documents.photo.age_months, operator: gte, value: 7}
+        - {fact: documents.photo.professional_attested, operator: neq, value: true}
+        - {fact: documents.photo.unedited_attested, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: PHOTO_PRECHECK_FAILED
+      message: The photo does not pass one or more EMGS preparation checks; final visual acceptance remains manual.
+      create_task: replace_or_review_photo
+    requirement_ids: [SPV1-REQ-009]
+    source_ids: [MY-EMGS-PASSPORT-PHOTO-GUIDELINES]
+
+  - id: SPV1-RULE-010
+    priority: 100
+    description: Require current yellow-fever evidence when an external official check marks it applicable.
+    when:
+      all:
+        - {fact: travel.yellow_fever_certificate_required, operator: eq, value: true}
+        - {fact: documents.yellow_fever_certificate.present, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: YELLOW_FEVER_CERTIFICATE_REQUIRED
+      message: Carry the required yellow-fever vaccination evidence for entry.
+      create_task: obtain_yellow_fever_evidence
+    requirement_ids: [SPV1-REQ-012]
+    source_ids: [MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS, MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY]
+
+  - id: SPV1-RULE-011
+    priority: 110
+    description: Refuse a definitive SEV decision when the dynamic dataset is stale.
+    when:
+      any:
+        - {fact: datasets.sev_country_list.age_days, operator: gte, value: 31}
+        - {fact: applicant.nationality_code, operator: absent}
+        - {fact: travel.document_type, operator: neq, value: ordinary_passport}
+    then:
+      outcome: manual_review
+      code: SEV_DECISION_REQUIRES_FRESH_CROSSCHECK
+      message: Refresh and cross-check the official visa sources before presenting an SEV answer.
+      create_task: refresh_sev_and_immigration_crosscheck
+    requirement_ids: [SPV1-REQ-013]
+    source_ids: [MY-EMGS-SEV-REQUIRED-COUNTRIES, MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY]
+
+  - id: SPV1-RULE-012
+    priority: 120
+    description: Require an SEV workflow step for nationalities in the fresh EMGS dataset.
+    when:
+      all:
+        - {fact: datasets.sev_country_list.age_days, operator: lte, value: 30}
+        - {fact: applicant.nationality_code, operator: dataset_contains, value: emgs-sev-required-country-codes}
+        - {fact: workflow.eval_approved, operator: eq, value: true}
+        - {fact: workflow.sev_obtained, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: SEV_REQUIRED_AFTER_EVAL
+      message: Obtain the Single Entry Visa through the official channel after eVAL and before entry.
+      create_task: obtain_sev
+    requirement_ids: [SPV1-REQ-013]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-SEV-REQUIRED-COUNTRIES]
+
+  - id: SPV1-RULE-013
+    priority: 130
+    description: Prevent an SEV step from being treated as ready before eVAL approval.
+    when:
+      all:
+        - {fact: travel.sev_required, operator: eq, value: true}
+        - {fact: workflow.eval_approved, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: EVAL_REQUIRED_BEFORE_SEV
+      message: Wait for eVAL approval before starting the SEV step.
+      create_task: await_eval
+    requirement_ids: [SPV1-REQ-013]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS]
+
+  - id: SPV1-RULE-014
+    priority: 140
+    description: Track the conservative post-arrival medical deadline.
+    when:
+      all:
+        - {fact: workflow.arrived_in_malaysia, operator: eq, value: true}
+        - {fact: medical.screening_completed, operator: neq, value: true}
+        - {fact: medical.days_since_arrival, operator: lte, value: 7}
+    then:
+      outcome: action_required
+      code: POST_ARRIVAL_MEDICAL_DUE
+      message: Complete the EMGS panel-clinic screening immediately and before endorsement.
+      create_task: schedule_panel_clinic_screening
+    requirement_ids: [SPV1-REQ-014]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-MEDICAL-SCREENING]
+
+  - id: SPV1-RULE-015
+    priority: 150
+    description: Route an apparently late medical screening to human review because source wording differs.
+    when:
+      all:
+        - {fact: workflow.arrived_in_malaysia, operator: eq, value: true}
+        - {fact: medical.screening_completed, operator: neq, value: true}
+        - {fact: medical.days_since_arrival, operator: gte, value: 8}
+    then:
+      outcome: manual_review
+      code: MEDICAL_DEADLINE_REVIEW
+      message: The conservative seven-calendar-day reminder has passed; verify the official working-day interpretation and case status.
+      create_task: urgent_medical_deadline_review
+    requirement_ids: [SPV1-REQ-014]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-MEDICAL-SCREENING]
+
+  - id: SPV1-RULE-016
+    priority: 160
+    description: Require Personal Bond, insurance, medical completion, and EMGS support before endorsement-ready.
+    when:
+      any:
+        - {fact: institution_documents.personal_bond.complete, operator: neq, value: true}
+        - {fact: insurance.locally_valid, operator: neq, value: true}
+        - {fact: insurance.covers_required_period, operator: neq, value: true}
+        - {fact: medical.screening_completed, operator: neq, value: true}
+        - {fact: workflow.emgs_support_letter_received, operator: neq, value: true}
+    then:
+      outcome: action_required
+      code: ENDORSEMENT_PREREQUISITES_INCOMPLETE
+      message: One or more endorsement prerequisites remain incomplete.
+      create_task: complete_endorsement_prerequisites
+    requirement_ids: [SPV1-REQ-014, SPV1-REQ-015, SPV1-REQ-016, SPV1-REQ-017]
+    source_ids: [MY-IMMIGRATION-STUDENT-PASS, MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS, MY-EMGS-MEDICAL-SCREENING, MY-EMGS-INSURANCE-2026]
