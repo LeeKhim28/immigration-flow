@@ -60,3 +60,83 @@ sources:
     supersedes: null
     notes: Candidate for detailed research. Do not encode rules until content, applicability, and dates are reviewed.
 
+  - id: MY-IMMIGRATION-MAIN-SERVICES
+    authority: Immigration Department of Malaysia
+    title: Main Services
+    canonical_url: https://www.imi.gov.my/index.php/en/main-services/
+    jurisdiction: Malaysia
+    topics:
+      - service_catalogue
+      - passport
+      - visa
+      - pass
+      - permit
+    source_type: official_portal
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Service taxonomy and discovery entry point; service-specific rules must cite the relevant detail page.
+
+  - id: MY-IMMIGRATION-STUDENT-PASS
+    authority: Immigration Department of Malaysia
+    title: Student Pass
+    canonical_url: https://www.imi.gov.my/index.php/en/main-services/pass/student-pass/
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - application_process
+      - dependant
+      - part_time_work
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: null
+    effective_from: null
+    effective_to: null
+    status: candidate
+    supersedes: null
+    notes: Primary Immigration Department detail page. Requires structured review before extracting requirements.
+
+  - id: MY-EMGS-REGISTERED-MALAYSIAN-CLINICS
+    authority: Education Malaysia Global Services
+    title: Registered Malaysian Clinic
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/registered-malaysian-clinic
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - medical_screening
+      - panel_clinic
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: null
+    effective_from: null
+    effective_to: null
+    status: candidate
+    supersedes: null
+    notes: Dynamic operational list; must be refreshed near use and should not be copied into long-lived eligibility rules.
+
+  - id: MY-MOHE-GRADUATE-PASS-GUIDEBOOK-V1-EN
+    authority: Ministry of Higher Education Malaysia
+    title: Graduate Pass Malaysia Guidebook, Volume 1, English version
+    canonical_url: https://educationmalaysia.gov.my/EmgsCore/media/File/Upload/File/Graduate-Pass-Malaysia-Guidebook-%28Volume-1-English-version%29.pdf
+    jurisdiction: Malaysia
+    topics:
+      - international_graduate
+      - graduate_pass
+      - post_study
+    source_type: official_guidebook
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: null
+    effective_from: null
+    effective_to: null
+    status: candidate
+    supersedes: null
+    notes: Dated guidebook candidate. Confirm publication/version details and reconcile with Immigration Department guidance before rule extraction.

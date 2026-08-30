@@ -5,7 +5,13 @@ This directory records the provenance of information used by ImmigrationFlow. A 
 ## Files
 
 - `registry.yaml` — human-reviewable source catalogue
-- Future captured metadata or normalized extracts should be immutable and dated.
+- `source-record.schema.json` — machine-checkable source-record contract
+- `CHANGELOG.md` — material registry and source-status changes
+- `snapshots/` — dated evidence snapshots when redistribution is permitted
+- `extracts/` — normalized, source-linked facts prepared for later ingestion
+- `reviews/` — human review records and discrepancy notes
+
+Git is the source of truth for Phase 1. A future runtime database or search index must be generated from reviewed material here and must never become the only copy of its provenance.
 
 ## Required source fields
 
@@ -27,4 +33,15 @@ This directory records the provenance of information used by ImmigrationFlow. A 
 4. Flag changed, inaccessible, contradictory, or undated material for human review.
 5. Link every implemented rule to one or more source IDs and a rule version.
 6. Do not silently overwrite historical evidence; supersede it.
+7. Do not store personal application data, credentials, or copyrighted full-text copies without permission.
+8. Re-check dynamic operational guidance before using it in a demo or rule evaluation.
+
+## Review states
+
+- `candidate` — discovered but not yet checked closely
+- `reviewed` — authority, title, URL, topic, and applicability checked by a person
+- `superseded` — retained for history and linked to its replacement
+- `retired` — no longer used and has no direct replacement
+
+`reviewed` does not mean legally guaranteed or permanently current. It means the evidence passed the documented portfolio review process on the recorded date.
 
