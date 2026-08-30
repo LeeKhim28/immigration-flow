@@ -144,8 +144,8 @@ cases:
       must_not_include: [SPV1-RULE-012]
       outcome: action_required
 
-  - id: medical_due_within_conservative_window
-    description: An arrived student without screening receives an immediate action task.
+  - id: medical_due_within_seven_calendar_days
+    description: An arrived student without screening receives an action task through day seven.
     overrides:
       medical: {screening_completed: false, days_since_arrival: 5}
       workflow: {emgs_support_letter_received: false}
@@ -154,8 +154,8 @@ cases:
       must_not_include: [SPV1-RULE-015]
       outcome: action_required
 
-  - id: medical_deadline_conflict_requires_review
-    description: Day eight invokes human review instead of automated rejection.
+  - id: medical_overdue_requires_urgent_review
+    description: Day eight invokes urgent human follow-up instead of automated rejection.
     overrides:
       medical: {screening_completed: false, days_since_arrival: 8}
       workflow: {emgs_support_letter_received: false}
@@ -172,4 +172,3 @@ cases:
     expected:
       must_include: [SPV1-RULE-016]
       outcome: action_required
-
