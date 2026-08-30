@@ -1,6 +1,6 @@
 # ADR 0002: Versioned Knowledge Synchronization and Activation
 
-**Status:** Proposed pending written-spec review  
+**Status:** Accepted  
 **Date:** 2026-08-30
 
 ## Context
