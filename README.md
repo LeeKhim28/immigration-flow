@@ -35,7 +35,7 @@ data/
 docs/
   api/                  API contracts
   architecture/         System design
-  decisions/            Architecture decision records
+    decisions/          Architecture decision records
   research/             Research notes with provenance
 tests/                  Cross-application and acceptance tests
 ```
@@ -44,7 +44,9 @@ Empty directories contain `.gitkeep` placeholders until their implementation pha
 
 ## Status
 
-Project foundation and the bounded Student Pass V1 official-knowledge package are complete. The repository now contains reviewed sources, normalized requirements, deterministic preparation/workflow rules, and synthetic rule cases. No production immigration advice or official decision-making service is implemented.
+Project foundation, the bounded Student Pass V1 official-knowledge package, and the Phase 2A logical data design are complete. The repository contains reviewed sources, normalized requirements, deterministic preparation/workflow rules, synthetic rule cases, a logical ERD, a data dictionary, and accepted architecture decisions.
+
+Start with the [Phase 2A design specification](docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md), then review the [logical ERD](docs/architecture/STUDENT_PASS_V1_ERD.md) and [data dictionary](docs/architecture/STUDENT_PASS_V1_DATA_DICTIONARY.md). PostgreSQL schemas, migrations, APIs, and production immigration services do not exist yet.
 
 ## Getting started
 
