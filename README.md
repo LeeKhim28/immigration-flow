@@ -44,7 +44,7 @@ Empty directories contain `.gitkeep` placeholders until their implementation pha
 
 ## Status
 
-Project foundation only. No production immigration advice or decision-making service is implemented yet.
+Project foundation and the bounded Student Pass V1 official-knowledge package are complete. The repository now contains reviewed sources, normalized requirements, deterministic preparation/workflow rules, and synthetic rule cases. No production immigration advice or official decision-making service is implemented.
 
 ## Getting started
 
@@ -53,4 +53,3 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), then choose a small milestone from the 
 ## Disclaimer
 
 This is an independent portfolio project, not an official Malaysian government service or legal-advice product. Users must verify requirements with the relevant authorities and official sources.
-
