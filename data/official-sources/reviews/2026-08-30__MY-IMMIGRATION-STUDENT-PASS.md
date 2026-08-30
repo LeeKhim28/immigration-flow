@@ -21,11 +21,10 @@ The page covers Student Pass categories, higher-education entry conditions, appl
 
 ## Limitations and conflicts
 
-- The page says medical examination within seven days; EMGS medical guidance says seven working days. V1 creates a conservative seven-calendar-day action reminder but sends any apparent breach to human review.
+- The page says medical examination within seven days; EMGS medical guidance says seven working days. ImmigrationFlow V1 records both statements but uses the stricter seven-calendar-day operational deadline for reminders. An overdue case receives urgent human follow-up and is never automatically rejected.
 - Security, travel-document, institution-authorization, and final approval checks are not reproducible by this portfolio system.
 - Sabah/Sarawak operational differences are outside V1.
 
 ## Rule use
 
 May support scope gates, workflow sequencing, and manual-review flags. Must never be used to represent Immigration approval.
-
