@@ -53,10 +53,10 @@ sources:
     source_type: official_guidance
     language: en
     retrieved_at: "2026-08-30"
-    reviewed_at: null
+    reviewed_at: "2026-08-30"
     effective_from: null
     effective_to: null
-    status: candidate
+    status: reviewed
     supersedes: null
     notes: Candidate for detailed research. Do not encode rules until content, applicability, and dates are reviewed.
 
@@ -95,10 +95,10 @@ sources:
     source_type: official_guidance
     language: en
     retrieved_at: "2026-08-30"
-    reviewed_at: null
+    reviewed_at: "2026-08-30"
     effective_from: null
     effective_to: null
-    status: candidate
+    status: reviewed
     supersedes: null
     notes: Primary Immigration Department detail page. Requires structured review before extracting requirements.
 
@@ -115,10 +115,10 @@ sources:
     source_type: official_guidance
     language: en
     retrieved_at: "2026-08-30"
-    reviewed_at: null
+    reviewed_at: "2026-08-30"
     effective_from: null
     effective_to: null
-    status: candidate
+    status: reviewed
     supersedes: null
     notes: Dynamic operational list; must be refreshed near use and should not be copied into long-lived eligibility rules.
 
@@ -140,3 +140,121 @@ sources:
     status: candidate
     supersedes: null
     notes: Dated guidebook candidate. Confirm publication/version details and reconcile with Immigration Department guidance before rule extraction.
+
+  - id: MY-EMGS-PASSPORT-PHOTO-GUIDELINES
+    authority: Education Malaysia Global Services
+    title: Passport Photo Guidelines
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/passport-photo-guidelines
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - passport_photo
+      - document_validation
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Visual requirements can support pre-checks, but final acceptance remains with EMGS and Immigration.
+
+  - id: MY-EMGS-MEDICAL-SCREENING
+    authority: Education Malaysia Global Services
+    title: Medical Screening
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/medical-screening
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - medical_screening
+      - endorsement
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: States seven working days after arrival; conflicts with the Immigration Student Pass page's seven-day wording.
+
+  - id: MY-EMGS-INSURANCE-2026
+    authority: Education Malaysia Global Services
+    title: Insurance - New
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/insurance-new-2026
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - medical_insurance
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: "2026-01-01"
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Product prices are deliberately not encoded as stable rules; the compulsory local coverage requirement is extracted.
+
+  - id: MY-EMGS-SEV-REQUIRED-COUNTRIES
+    authority: Education Malaysia Global Services
+    title: SEV Required Countries
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/sev-required-countries
+    jurisdiction: Malaysia
+    topics:
+      - international_student
+      - student_pass
+      - single_entry_visa
+      - nationality
+    source_type: official_guidance
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Dynamic list that explicitly warns it may change without notice; runtime use requires freshness checks.
+
+  - id: MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY
+    authority: Immigration Department of Malaysia
+    title: Visa Requirement by Country
+    canonical_url: https://www.imi.gov.my/index.php/perkhidmatan-utama/visa/keperluan-visa-mengikut-negara/
+    jurisdiction: Malaysia
+    topics:
+      - visa
+      - single_entry_visa
+      - nationality
+      - yellow_fever
+    source_type: official_guidance
+    language: ms
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Primary Immigration reference for visa requirements. Time-limited nationality exemptions must not be hard-coded without effective dates.
+
+  - id: MY-MQA-MQR-SEARCH
+    authority: Malaysian Qualifications Agency
+    title: Malaysian Qualifications Register - Search for Qualifications
+    canonical_url: https://www.mqa.gov.my/mqr/english/ecarianakr.cfm
+    jurisdiction: Malaysia
+    topics:
+      - higher_education
+      - institution
+      - programme_accreditation
+    source_type: official_portal
+    language: en
+    retrieved_at: "2026-08-30"
+    reviewed_at: "2026-08-30"
+    effective_from: null
+    effective_to: null
+    status: reviewed
+    supersedes: null
+    notes: Supports programme-accreditation verification. MOHA authorization to enrol international students still requires institution confirmation or another authoritative source.
