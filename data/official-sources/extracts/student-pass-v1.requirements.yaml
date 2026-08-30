@@ -187,7 +187,7 @@ requirements:
     level: required
     statement: Complete the post-arrival medical screening at an EMGS panel clinic promptly after arrival and before endorsement.
     condition: always
-    machine_handling: Set a conservative reminder at arrival plus seven calendar days; late cases require human review because official wording differs.
+    machine_handling: Use seven calendar days as the V1 operational deadline from recorded arrival; if overdue, create urgent human follow-up and never automatically reject the case. Preserve the official wording discrepancy in source review records.
     sources:
       - source_id: MY-IMMIGRATION-STUDENT-PASS
         locator: Higher Education Institutions, item 1.1(h)
@@ -229,4 +229,3 @@ requirements:
     sources:
       - source_id: MY-IMMIGRATION-STUDENT-PASS
         locator: Higher Education Institutions, item 1.1(i)
-
