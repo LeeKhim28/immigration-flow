@@ -11,5 +11,5 @@ Material additions, removals, status transitions, and applicability changes are 
 - Completed the bounded Student Pass V1 review for new UA/IPTS higher-education applicants applying from outside Malaysia for Peninsular Malaysia.
 - Added reviewed photo, medical, insurance, SEV, Immigration visa-country, and MQA sources.
 - Added 17 normalized requirements, a freshness-controlled SEV dataset, 16 deterministic preparation/workflow rules, and 12 synthetic rule cases.
-- Recorded the seven-day versus seven-working-day medical deadline discrepancy and routed ambiguous/late cases to human review.
+- Recorded the seven-day versus seven-working-day source discrepancy and adopted a seven-calendar-day V1 operational deadline; overdue cases receive urgent human follow-up and are never automatically rejected.
 - Rules deliberately produce preparation outcomes only; no approval outcome exists.
