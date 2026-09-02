@@ -10,7 +10,17 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.uv-cache/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local PostgreSQL artifacts
+postgres_data/
+postgres-test-data/
 
 # Local configuration and secrets
 .env
@@ -29,9 +39,9 @@ venv/
 *.log
 tmp/
 .cache/
+.superpowers/
 
 # Personal or sensitive case material
 data/private/
 data/uploads/
 data/raw-applications/
-

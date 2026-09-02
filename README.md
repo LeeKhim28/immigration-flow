@@ -44,13 +44,15 @@ Empty directories contain `.gitkeep` placeholders until their implementation pha
 
 ## Status
 
-Project foundation, the bounded Student Pass V1 official-knowledge package, and the Phase 2A logical data design are complete. The repository contains reviewed sources, normalized requirements, deterministic preparation/workflow rules, synthetic rule cases, a logical ERD, a data dictionary, and accepted architecture decisions.
+Project foundation, the bounded Student Pass V1 official-knowledge package, the Phase 2A logical data design, and the Phase 2B.1 database foundation are implemented. Phase 2B.1 includes the FastAPI runtime, PostgreSQL 18.6, four Alembic revisions, fourteen domain tables, database-level integrity and immutability controls, automated tests, CI configuration, and reviewed dependency-update configuration.
 
-Start with the [Phase 2A design specification](docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md), then review the [logical ERD](docs/architecture/STUDENT_PASS_V1_ERD.md) and [data dictionary](docs/architecture/STUDENT_PASS_V1_DATA_DICTIONARY.md). PostgreSQL schemas, migrations, APIs, and production immigration services do not exist yet.
+The only application endpoints are `/health` and `/health/database`; there is no Case business API yet. Phase 2B.1 stores schema metadata and synthetic fixtures only—it does not store real applicant data or real sensitive file bytes.
+
+Start with the [Phase 2A design specification](docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md), then review the [logical ERD](docs/architecture/STUDENT_PASS_V1_ERD.md), [data dictionary](docs/architecture/STUDENT_PASS_V1_DATA_DICTIONARY.md), and [backend setup guide](backend/README.md). Phase 2B.2 is the next implementation boundary and has not been implemented.
 
 ## Getting started
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), then choose a small milestone from the project scope. Avoid adding business code before the data model, source provenance, and first workflow have written acceptance criteria.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [backend setup guide](backend/README.md). Avoid adding Phase 2B.2 business APIs before their workflow and acceptance criteria are separately approved.
 
 ## Disclaimer
 
