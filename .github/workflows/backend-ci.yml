@@ -1,0 +1,40 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-and-knowledge-validation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_DB: immigration_flow_test
+          POSTGRES_USER: immigration_flow
+          POSTGRES_PASSWORD: immigration_flow_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U immigration_flow -d immigration_flow_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://immigration_flow:immigration_flow_test@localhost:5432/immigration_flow_test
+      TEST_DATABASE_URL: postgresql+psycopg://immigration_flow:immigration_flow_test@localhost:5432/immigration_flow_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - run: uv python install 3.14
+      - run: uv sync --project backend --locked --all-groups
+      - run: uv run --project backend ruff check backend/app backend/tests backend/migrations
+      - run: uv run --project backend ruff format --check backend/app backend/tests backend/migrations
+      - run: uv run --project backend mypy backend/app
+      - run: uv run alembic upgrade head
+        working-directory: backend
+      - run: uv run --project backend pytest backend/tests -v
+      - run: ruby scripts/validate_knowledge_base.rb
+      - run: ruby tests/rules/student-pass-v1.policy_contract_test.rb
