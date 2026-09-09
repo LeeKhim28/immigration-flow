@@ -1,6 +1,6 @@
 # Phase 2B.2A Versioned Knowledge Synchronization and Activation Design
 
-**Status:** Awaiting written-spec approval
+**Status:** Approved
 **Date:** 2026-09-02
 **Scope:** Student Pass V1 knowledge monitoring, repository-to-PostgreSQL synchronization, governance, and scheduled rule-set activation. Case assignment and evaluation are deferred to Phase 2B.2B.
 
@@ -107,7 +107,7 @@ A `CHANGED` or `BLOCKED` outcome creates or updates one open GitHub Issue identi
 
 Repeated checks update the existing issue instead of opening duplicates. Closing an issue records completion of human review but does not itself update a baseline, synchronize PostgreSQL, or activate a rule. Formal changes still require a reviewed Git commit.
 
-The dedicated monitor workflow receives only `contents: read` and `issues: write`. Existing backend pull-request CI remains read-only.
+The dedicated monitor workflow receives only `contents: read`, `actions: read`, and `issues: write`. `actions: read` is required solely to restore its own previous monitor-state artifact. Existing backend pull-request CI remains read-only.
 
 ### 5.5 Retrieval safety
 
@@ -131,10 +131,10 @@ Phase 2B.2A adds twelve tables in two migrations.
 | Table | Purpose | Principal fields and constraints |
 |---|---|---|
 | `knowledge_sync_run` | Durable record of one import attempt | Git commit SHA, start/end timestamps, status, validation summary, sanitized error summary. Multiple failed attempts for one commit are allowed; at most one successful run per commit. |
-| `knowledge_source` | Stable identity of an official source | Unique source code and canonical URL, authority, source type, and authoring status. |
+| `knowledge_source` | Stable identity of an official source | Unique source code and canonical URL, title, authority, jurisdiction, language, topics, source type, and authoring status. |
 | `source_revision` | Immutable reviewed source state | Source FK, retrieval/review/effective timestamps, normalized content hash, repository snapshot reference, Git commit SHA, and sync-run FK. |
 | `requirement` | Stable requirement identity | Unique requirement code, service type, and category. |
-| `requirement_version` | Immutable reviewed requirement content | Requirement FK, monotonic version number, statement, validated condition document, machine-handling policy, effective interval, fingerprint, Git commit SHA, and sync-run FK. |
+| `requirement_version` | Immutable reviewed requirement content | Requirement FK, monotonic version number, stage, responsible actor, level, statement, validated condition document, machine-handling policy, effective interval, fingerprint, Git commit SHA, and sync-run FK. |
 | `requirement_source` | Exact provenance for a requirement version | Composite identity over requirement version, source revision, locator, and support type. |
 
 ### 6.2 Migration `0006_rule_versions_and_activation`
@@ -142,9 +142,9 @@ Phase 2B.2A adds twelve tables in two migrations.
 | Table | Purpose | Principal fields and constraints |
 |---|---|---|
 | `rule_set` | Stable deployable rule-family identity | Unique rule-set code, service type, and name. |
-| `rule_set_version` | Immutable release and transition policy | Rule-set FK, semantic version, published/effective/activated timestamps, applicability basis, submission cutoff, transition policy, status, superseded-version FK, sync-run FK, fingerprint, and Git commit SHA. |
+| `rule_set_version` | Immutable release and transition policy | Rule-set FK, semantic version, scope, outcome contract, default outcome, supporting dataset snapshots, published/effective/activated timestamps, applicability basis, submission cutoff, transition policy, status, superseded-version FK, sync-run FK, fingerprint, and Git commit SHA. Small reviewed datasets such as the SEV country-code set are stored in the release snapshot so a later evaluation can be reproduced. |
 | `rule_definition` | Stable rule identity | Unique rule code and name. |
-| `rule_version` | Immutable deterministic rule content | Rule-definition FK, rule-set-version FK, priority, validated condition document, outcome, message, optional task type, fingerprint, and Git commit SHA. |
+| `rule_version` | Immutable deterministic rule content | Rule-definition FK, rule-set-version FK, description, priority, validated condition document, outcome, finding code, message, optional task type, validated supplemental source codes, fingerprint, and Git commit SHA. Formal provenance remains the rule-to-requirement-to-source-revision chain. |
 | `rule_requirement` | Provenance from rule to requirement | Composite identity over rule version and requirement version. |
 | `approval_event` | Append-only human governance decision | Rule-set-version FK, decision, administrator actor FK, decision timestamp, and notes. |
 
@@ -156,7 +156,7 @@ Revision `0006` also broadens the existing `audit_event` table for platform-leve
 
 Stable entities (`knowledge_source`, `requirement`, `rule_set`, and `rule_definition`) are addressed by reviewed business codes. Revision and version records are immutable.
 
-A canonical fingerprint includes every field that affects meaning plus sorted provenance references. Therefore a wording, condition, machine-handling instruction, evidence locator, support type, outcome, priority, or referenced requirement change creates a new version. Cosmetic YAML ordering does not.
+A canonical fingerprint includes every field that affects meaning plus sorted provenance references. Therefore a stage, responsible actor, level, wording, condition, machine-handling instruction, evidence locator, support type, scope, outcome contract, default outcome, supporting dataset snapshot, description, finding code, outcome, priority, task, supplemental source code, or referenced requirement change creates a new version. Cosmetic YAML ordering does not.
 
 For each stable requirement, sync assigns the next monotonic integer version when the fingerprint changes. A rule version belongs to exactly one rule-set version. A synchronized rule-set semantic version is immutable: changing its release fingerprint without incrementing the semantic version is rejected.
 
@@ -218,7 +218,7 @@ The Activation Coordinator uses a per-rule-set PostgreSQL advisory or row lock. 
 
 ## 11. Rule-expression safety
 
-Phase 2B.2A validates and stores rule expressions but does not execute them against cases. Expressions use the bounded YAML/JSON DSL already represented in the Student Pass V1 artifacts. Validation uses an allowlist of logical forms, fact identifiers, operators, scalar/list value types, outcomes, and task types.
+Phase 2B.2A validates and stores expressions but does not execute them against cases. Requirement conditions and rule conditions are separate bounded YAML/JSON contracts: requirement conditions accept the literal `always` or a `field`/`operator`/`value` leaf, while rule conditions accept recursive `all`/`any` forms or a `fact`/`operator`/`value` leaf. Validation uses separate allowlists for their fields, operators, scalar/list value types, datasets, outcomes, and task types.
 
 The implementation must not call Python `eval`, `exec`, dynamic imports, shell evaluation, or a general-purpose template engine. Unknown operators, unknown fields, excessive nesting, invalid value types, and unsupported outcomes fail synchronization.
 
@@ -273,7 +273,7 @@ The live PostgreSQL migration suite performs `0004 → head → 0004 → head`, 
 
 ## 14. Continuous integration
 
-Backend CI adds schema, monitor-fixture, sync, activation, and migration tests while preserving read-only repository permissions. A separate scheduled and manually dispatchable source-monitor workflow has only `contents: read` and `issues: write`.
+Backend CI adds schema, monitor-fixture, sync, activation, and migration tests while preserving read-only repository permissions. A separate scheduled and manually dispatchable source-monitor workflow has only `contents: read`, `actions: read`, and `issues: write`.
 
 The scheduled workflow:
 
