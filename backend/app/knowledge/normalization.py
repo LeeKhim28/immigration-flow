@@ -34,6 +34,8 @@ def normalize_html(document: bytes, selector: str | None, strategy_version: int)
     for comment in content.find_all(string=lambda text: isinstance(text, Comment)):
         comment.extract()
     for element in list(content.find_all()):
+        if element.attrs is None:
+            continue
         attributes = " ".join(
             f"{name} {' '.join(value) if isinstance(value, list) else value}"
             for name, value in element.attrs.items()

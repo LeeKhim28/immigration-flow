@@ -7,6 +7,16 @@ import pytest
 from app.knowledge.repository import load_monitor_baselines
 
 NOW = datetime(2026, 9, 17, tzinfo=UTC)
+EXPECTED_STUDENT_PASS_V1_SOURCE_IDS = {
+    "MY-EMGS-INSURANCE-2026",
+    "MY-EMGS-MEDICAL-SCREENING",
+    "MY-EMGS-PASSPORT-PHOTO-GUIDELINES",
+    "MY-EMGS-SEV-REQUIRED-COUNTRIES",
+    "MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS",
+    "MY-IMMIGRATION-STUDENT-PASS",
+    "MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY",
+    "MY-MQA-MQR-SEARCH",
+}
 
 
 def _write_repository(
@@ -98,3 +108,11 @@ def test_load_monitor_baselines_rejects_duplicate_source_ids(tmp_path: Path) -> 
 
     with pytest.raises(ValueError, match="duplicate source_id"):
         load_monitor_baselines(tmp_path)
+
+
+def test_production_baselines_cover_only_reviewed_student_pass_v1_sources() -> None:
+    project_root = Path(__file__).resolve().parents[4]
+
+    baselines = load_monitor_baselines(project_root)
+
+    assert {baseline.source_id for baseline in baselines} == EXPECTED_STUDENT_PASS_V1_SOURCE_IDS

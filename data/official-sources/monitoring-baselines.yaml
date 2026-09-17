@@ -1,0 +1,66 @@
+schema_version: 1
+baselines:
+  - source_id: MY-EMGS-INSURANCE-2026
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/insurance-new-2026
+    allowed_hosts: [visa.educationmalaysia.gov.my]
+    selector: .col-main
+    strategy_version: 1
+    approved_hash: 5d917d0e7407992dbedd2a06f630dc4b2d802c4d4bb6ebcddb58ad1fa1e5dca6
+    captured_at: "2026-09-17T10:41:39.730341+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-EMGS-MEDICAL-SCREENING
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/medical-screening
+    allowed_hosts: [visa.educationmalaysia.gov.my]
+    selector: .col-main
+    strategy_version: 1
+    approved_hash: 8f454e73e80adc035b4fdac9ffbb9ce4f987eb6c10da97258ac26add58980241
+    captured_at: "2026-09-17T10:41:39.911946+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-EMGS-PASSPORT-PHOTO-GUIDELINES
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/passport-photo-guidelines
+    allowed_hosts: [visa.educationmalaysia.gov.my]
+    selector: .col-main
+    strategy_version: 1
+    approved_hash: a1eebc356f79e10942cdb1bea679b0b8c23401055be67246e53d84fce32ee2ab
+    captured_at: "2026-09-17T10:41:40.026865+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-EMGS-SEV-REQUIRED-COUNTRIES
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/sev-required-countries
+    allowed_hosts: [visa.educationmalaysia.gov.my]
+    selector: .col-main
+    strategy_version: 1
+    approved_hash: 8da04fcab49949b3fe5010d306532e1687c3a762f0b0aadc79436b7301de60ba
+    captured_at: "2026-09-17T10:41:40.202019+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+    canonical_url: https://visa.educationmalaysia.gov.my/guidelines/required-documents
+    allowed_hosts: [visa.educationmalaysia.gov.my]
+    selector: .col-main
+    strategy_version: 1
+    approved_hash: 9c0c52f7d5321f431a31a50327a28038ae71c6d26fb01b1fe9303c5aa6ef7db8
+    captured_at: "2026-09-17T10:41:40.395320+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-IMMIGRATION-STUDENT-PASS
+    canonical_url: https://www.imi.gov.my/index.php/en/main-services/pass/student-pass/
+    allowed_hosts: [www.imi.gov.my]
+    selector: main#main
+    strategy_version: 1
+    approved_hash: 2bfaf464a78425e22e347cef109362b9427bf24fc7689cf9948b085063f5e01c
+    captured_at: "2026-09-17T10:41:48.462648+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY
+    canonical_url: https://www.imi.gov.my/index.php/perkhidmatan-utama/visa/keperluan-visa-mengikut-negara/
+    allowed_hosts: [www.imi.gov.my]
+    selector: main#main
+    strategy_version: 1
+    approved_hash: 4af204580c5b2e6049621a57018d343225ff9d68ab1f5e2a9a793954d046722a
+    captured_at: "2026-09-17T10:41:51.135452+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483
+  - source_id: MY-MQA-MQR-SEARCH
+    canonical_url: https://www.mqa.gov.my/mqr/english/ecarianakr.cfm
+    allowed_hosts: [www.mqa.gov.my]
+    selector: "#AutoNumber2"
+    strategy_version: 1
+    approved_hash: cd96be650a90260ddf376f9eee206f60b1b27b291dbb8b81583f32de9e54029b
+    captured_at: "2026-09-17T10:41:51.284454+00:00"
+    git_commit_sha: 674ee87aa954ee3768bda86d4edafe135dfbf483

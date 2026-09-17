@@ -38,3 +38,16 @@ def test_missing_configured_selector_fails_closed() -> None:
 def test_unknown_normalization_strategy_is_rejected() -> None:
     with pytest.raises(NormalizationError, match="strategy"):
         normalize_html(_fixture("original.html"), "#policy-content", strategy_version=2)
+
+
+def test_nested_cookie_banner_is_removed_without_processing_detached_children() -> None:
+    normalized = normalize_html(
+        b"""
+        <main><p>Public Student Pass requirement</p></main>
+        <section class="cookie-banner"><div><span>Accept cookies</span></div></section>
+        """,
+        selector=None,
+        strategy_version=1,
+    )
+
+    assert normalized == b"Public Student Pass requirement"
