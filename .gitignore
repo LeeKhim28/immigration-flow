@@ -40,6 +40,7 @@ postgres-test-data/
 tmp/
 .cache/
 .superpowers/
+.worktrees/
 
 # Personal or sensitive case material
 data/private/
