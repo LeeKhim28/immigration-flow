@@ -66,6 +66,40 @@ JSON.parse(File.read(File.join(ROOT, "data/official-sources/source-record.schema
 JSON.parse(File.read(File.join(ROOT, "data/official-sources/extracts/requirement-set.schema.json")))
 JSON.parse(File.read(File.join(ROOT, "data/rules/rule-set.schema.json")))
 
+monitoring_baseline_path = "data/official-sources/monitoring-baselines.yaml"
+if File.exist?(File.join(ROOT, monitoring_baseline_path))
+  JSON.parse(File.read(File.join(ROOT, "data/official-sources/monitoring-baseline.schema.json")))
+  monitoring_baselines = load_yaml(monitoring_baseline_path)
+  monitored_source_ids = monitoring_baselines.fetch("baselines").map { |baseline| baseline.fetch("source_id") }
+  registry_by_id = registry.fetch("sources").to_h { |source| [source.fetch("id"), source] }
+  expected_student_pass_v1_sources = %w[
+    MY-EMGS-INSURANCE-2026
+    MY-EMGS-MEDICAL-SCREENING
+    MY-EMGS-PASSPORT-PHOTO-GUIDELINES
+    MY-EMGS-SEV-REQUIRED-COUNTRIES
+    MY-EMGS-STUDENT-PASS-REQUIRED-DOCUMENTS
+    MY-IMMIGRATION-STUDENT-PASS
+    MY-IMMIGRATION-VISA-REQUIREMENTS-BY-COUNTRY
+    MY-MQA-MQR-SEARCH
+  ]
+
+  assert(monitoring_baselines.fetch("schema_version") == 1, "Unexpected monitoring baseline schema version")
+  assert(monitored_source_ids.uniq.length == monitored_source_ids.length, "Duplicate monitoring baseline source ID")
+  assert(monitored_source_ids.sort == expected_student_pass_v1_sources.sort, "Unexpected monitored Student Pass V1 sources")
+
+  monitoring_baselines.fetch("baselines").each do |baseline|
+    source_id = baseline.fetch("source_id")
+    source = registry_by_id.fetch(source_id) { raise "Unknown monitoring source #{source_id}" }
+    assert(source.fetch("status") == "reviewed", "Monitoring source #{source_id} must be reviewed")
+    assert(baseline.fetch("canonical_url") == source.fetch("canonical_url"), "Monitoring URL mismatch for #{source_id}")
+    assert(baseline.fetch("canonical_url").start_with?("https://"), "Monitoring URL must use HTTPS for #{source_id}")
+    assert(baseline.fetch("approved_hash").match?(/\A[0-9a-f]{64}\z/), "Invalid monitoring hash for #{source_id}")
+    assert(baseline.fetch("git_commit_sha").match?(/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/), "Invalid monitoring Git SHA for #{source_id}")
+    assert(Array(baseline.fetch("allowed_hosts")).any?, "Missing allowed hosts for #{source_id}")
+    assert(baseline.fetch("strategy_version") == 1, "Unsupported monitoring strategy for #{source_id}")
+  end
+end
+
 source_ids = registry.fetch("sources").map { |source| source.fetch("id") }
 requirement_ids = requirements.fetch("requirements").map { |requirement| requirement.fetch("id") }
 rules = rule_set.fetch("rules")
@@ -122,4 +156,3 @@ cases.fetch("cases").each do |test_case|
 end
 
 puts "Validated #{source_ids.length} sources, #{requirement_ids.length} requirements, #{rule_ids.length} rules, and #{cases.fetch('cases').length} cases."
-

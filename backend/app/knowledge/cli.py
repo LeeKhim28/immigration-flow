@@ -1,0 +1,231 @@
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+import httpx
+import yaml
+
+from app.knowledge.contracts import (
+    MonitorBaseline,
+    MonitorOutcome,
+    MonitorState,
+    MonitorTrigger,
+    RetrievedSource,
+)
+from app.knowledge.github_issues import (
+    CollectingIssueGateway,
+    GitHubIssueGateway,
+    ReviewIssueGateway,
+)
+from app.knowledge.monitor import check_source
+from app.knowledge.repository import load_monitor_baselines, load_repository_document
+from app.knowledge.url_safety import retrieve_source
+
+
+class SocketHostResolver:
+    def resolve(self, hostname: str) -> tuple[str, ...]:
+        results = socket.getaddrinfo(hostname, 443, type=socket.SOCK_STREAM)
+        addresses = {result[4][0] for result in results if isinstance(result[4][0], str)}
+        return tuple(sorted(addresses))
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Monitor reviewed ImmigrationFlow official sources."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    monitor = subparsers.add_parser(
+        "monitor", help="Retrieve monitored sources and record outcomes."
+    )
+    monitor.add_argument("--root", type=Path, required=True, help="Repository root directory.")
+    monitor.add_argument("--state", type=Path, required=True, help="Prior monitor state JSON file.")
+    monitor.add_argument(
+        "--output-state", type=Path, required=True, help="Next monitor state JSON file."
+    )
+    monitor.add_argument(
+        "--trigger", choices=tuple(item.value.lower() for item in MonitorTrigger), required=True
+    )
+    monitor.add_argument("--dry-run", action="store_true", help="Do not call the GitHub API.")
+
+    bootstrap = subparsers.add_parser(
+        "bootstrap-baselines", help="Generate a review-only candidate monitoring baseline file."
+    )
+    bootstrap.add_argument("--root", type=Path, required=True, help="Repository root directory.")
+    bootstrap.add_argument("--output", type=Path, required=True, help="Candidate YAML output file.")
+    return parser
+
+
+def main(arguments: Sequence[str] | None = None) -> int:
+    parsed = build_parser().parse_args(arguments)
+    try:
+        if parsed.command == "monitor":
+            return _monitor(parsed)
+        return _bootstrap_baselines(parsed)
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+
+def _monitor(arguments: argparse.Namespace) -> int:
+    baselines = load_monitor_baselines(arguments.root)
+    prior_states = _load_states(arguments.state)
+    trigger = MonitorTrigger(arguments.trigger.upper())
+    next_states: dict[str, MonitorState] = {}
+    resolver = SocketHostResolver()
+    with httpx.Client(timeout=15.0, trust_env=False) as client:
+        gateway = _issue_gateway(arguments.dry_run, client)
+        gateway.ensure_labels()
+        for baseline in baselines:
+            prior_state = prior_states.get(baseline.source_id, _initial_state(baseline))
+
+            def retrieve(baseline: MonitorBaseline = baseline) -> RetrievedSource:
+                return retrieve_source(baseline, client, resolver)
+
+            result = check_source(
+                baseline,
+                prior_state,
+                trigger,
+                retrieve,
+                datetime.now(UTC),
+            )
+            next_states[baseline.source_id] = result.next_state
+            if result.should_notify:
+                gateway.upsert(result)
+
+    _write_states(arguments.output_state, next_states)
+    if isinstance(gateway, CollectingIssueGateway):
+        for operation in gateway.operations:
+            print(operation)
+    return 0
+
+
+def _bootstrap_baselines(arguments: argparse.Namespace) -> int:
+    registry = load_repository_document(arguments.root, Path("data/official-sources/registry.yaml"))
+    sources = registry.get("sources")
+    if not isinstance(sources, list):
+        raise ValueError("source registry must contain sources")
+    git_commit_sha = _head_commit(arguments.root)
+    resolver = SocketHostResolver()
+    candidates: list[dict[str, object]] = []
+    with httpx.Client(trust_env=False) as client:
+        for source in sources:
+            if not isinstance(source, Mapping) or source.get("status") != "reviewed":
+                continue
+            source_id = _source_text(source, "id")
+            canonical_url = _source_text(source, "canonical_url")
+            hostname = httpx.URL(canonical_url).host
+            if hostname is None:
+                raise ValueError(f"source has no hostname: {source_id}")
+            baseline = MonitorBaseline(
+                source_id=source_id,
+                canonical_url=canonical_url,
+                allowed_hosts=(hostname,),
+                selector=None,
+                strategy_version=1,
+                approved_hash="0" * 64,
+                captured_at=datetime.now(UTC),
+                git_commit_sha=git_commit_sha,
+            )
+            retrieved = retrieve_source(baseline, client, resolver)
+            candidates.append(
+                {
+                    "source_id": source_id,
+                    "canonical_url": canonical_url,
+                    "allowed_hosts": [hostname],
+                    "selector": None,
+                    "strategy_version": 1,
+                    "approved_hash": retrieved.content_hash,
+                    "captured_at": retrieved.retrieved_at.isoformat(),
+                    "git_commit_sha": git_commit_sha,
+                }
+            )
+    _atomic_write_yaml(arguments.output, {"schema_version": 1, "baselines": candidates})
+    print(f"Generated {len(candidates)} candidate baseline records.")
+    return 0
+
+
+def _issue_gateway(dry_run: bool, client: httpx.Client) -> ReviewIssueGateway:
+    if dry_run:
+        return CollectingIssueGateway()
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repo:
+        raise ValueError("GITHUB_TOKEN and GITHUB_REPOSITORY are required unless --dry-run is used")
+    return GitHubIssueGateway(repo, token, client)
+
+
+def _load_states(path: Path) -> dict[str, MonitorState]:
+    if not path.exists():
+        return {}
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"could not read monitor state from {path}") from error
+    if not isinstance(document, Mapping) or not isinstance(document.get("sources"), Mapping):
+        raise ValueError("monitor state must contain a sources object")
+    states: dict[str, MonitorState] = {}
+    for source_id, state in document["sources"].items():
+        if not isinstance(source_id, str) or not isinstance(state, Mapping):
+            raise ValueError("monitor state source entries must be objects keyed by source ID")
+        parsed = MonitorState.from_dict(state)
+        if parsed.source_id != source_id:
+            raise ValueError("monitor state source key must match its source_id")
+        states[source_id] = parsed
+    return states
+
+
+def _write_states(path: Path, states: Mapping[str, MonitorState]) -> None:
+    payload = {
+        "sources": {source_id: states[source_id].to_dict() for source_id in sorted(states)},
+    }
+    _atomic_write_text(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _atomic_write_yaml(path: Path, document: Mapping[str, object]) -> None:
+    _atomic_write_text(path, yaml.safe_dump(dict(document), sort_keys=False, allow_unicode=True))
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as temporary:
+        temporary.write(text)
+        temporary_path = Path(temporary.name)
+    os.replace(temporary_path, path)
+
+
+def _initial_state(baseline: MonitorBaseline) -> MonitorState:
+    return MonitorState(
+        source_id=baseline.source_id,
+        last_outcome=MonitorOutcome.UNCHANGED,
+        consecutive_failures=0,
+        last_comparable_hash=None,
+    )
+
+
+def _head_commit(root: Path) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+def _source_text(source: Mapping[str, object], field_name: str) -> str:
+    value = source.get(field_name)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"source {field_name} must be non-empty text")
+    return value
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
