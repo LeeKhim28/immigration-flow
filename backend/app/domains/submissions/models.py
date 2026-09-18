@@ -138,6 +138,11 @@ class CaseSubmission(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    applicable_rule_set_version_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("rule_set_version.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
 
 
 class SubmissionDocument(Base):

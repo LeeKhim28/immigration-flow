@@ -139,6 +139,11 @@ class ImmigrationCase(Base):
         ForeignKey("actor.id", ondelete="RESTRICT"),
         nullable=True,
     )
+    current_rule_set_version_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("rule_set_version.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -195,6 +200,80 @@ class CaseStatusHistory(Base):
         nullable=False,
     )
     changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class CaseRuleAssignment(Base):
+    __tablename__ = "case_rule_assignment"
+    __table_args__ = (
+        Index("ix_case_rule_assignment_case_id", "case_id"),
+        Index("ix_case_rule_assignment_rule_set_version_id", "rule_set_version_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    case_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("case.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    rule_set_version_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("rule_set_version.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    assignment_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    assigned_by_actor_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("actor.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    supersedes_assignment_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("case_rule_assignment.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+
+
+class CaseRequirement(Base):
+    __tablename__ = "case_requirement"
+    __table_args__ = (
+        UniqueConstraint("case_id", "requirement_version_id", name="uq_case_requirement_version"),
+        CheckConstraint(
+            "status IN ('PENDING','SATISFIED','NOT_APPLICABLE')", name="status_allowed"
+        ),
+        Index("ix_case_requirement_case_id", "case_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    case_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("case.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    requirement_version_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("requirement_version.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    satisfied_by_document_version_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("document_version.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,

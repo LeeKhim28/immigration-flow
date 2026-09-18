@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, text
 from app.database.models import Base
 
 EXPECTED_REVISIONS = (
+    ("0008_case_rule_assignments_and_requirements", "0007_submission_handover_timestamp"),
     ("0007_submission_handover_timestamp", "0006_rule_versions_and_activation"),
     ("0006_rule_versions_and_activation", "0005_knowledge_sources_and_requirements"),
     ("0005_knowledge_sources_and_requirements", "0004_events_audit_and_immutability"),
@@ -46,6 +47,8 @@ EXPECTED_TABLES = {
     "rule_version",
     "rule_requirement",
     "approval_event",
+    "case_requirement",
+    "case_rule_assignment",
 }
 APPLICATION_SCHEMA = "public"
 FunctionIdentity = tuple[str, str, str]
@@ -236,6 +239,22 @@ EXPECTED_TRIGGERS = {
         "approval_event",
         APPLICATION_SCHEMA,
         "enforce_administrator_approval",
+        "",
+    ),
+    (
+        "prevent_case_requirement_mutation",
+        APPLICATION_SCHEMA,
+        "case_requirement",
+        APPLICATION_SCHEMA,
+        "prevent_append_only_mutation",
+        "",
+    ),
+    (
+        "prevent_case_rule_assignment_mutation",
+        APPLICATION_SCHEMA,
+        "case_rule_assignment",
+        APPLICATION_SCHEMA,
+        "prevent_append_only_mutation",
         "",
     ),
 }

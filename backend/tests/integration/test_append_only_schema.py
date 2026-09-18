@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError
 
-EXPECTED_REVISION = "0007_submission_handover_timestamp"
+EXPECTED_REVISION = "0008_case_rule_assignments_and_requirements"
 
 
 class SeededRecords(NamedTuple):
