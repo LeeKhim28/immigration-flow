@@ -1,8 +1,8 @@
 # ImmigrationFlow backend
 
-Phase 2B.1 is the database foundation for ImmigrationFlow. It provides a small FastAPI runtime, PostgreSQL 18.6, four ordered Alembic revisions, fourteen domain tables, database-level integrity and immutability controls, automated tests, CI configuration, and reviewed dependency-update configuration.
+Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B adds a minimal synthetic Student Pass workflow: applicant draft creation, formal handover to Immigration, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, seven ordered Alembic revisions, immutable source/requirement/rule history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
 
-There is no Case business API in this phase. The only application endpoints are `/health` and `/health/database`. Phase 2B.2 is the next implementation boundary and has not been implemented.
+The business API is intentionally narrow. It demonstrates case workflow and auditability; it does not integrate with Immigration, make decisions, upload documents, or authenticate real users.
 
 The project stores schema metadata and synthetic test fixtures only. Do not use real applicant data, identity documents, passport numbers, credentials, or sensitive file bytes.
 
@@ -27,7 +27,7 @@ Install the locked backend environment:
 uv sync --project backend --locked --all-groups
 ```
 
-Start the persistent development database, wait up to 30 seconds for PostgreSQL to accept connections, and then apply all four migrations. The migration command cannot run if the readiness check fails:
+Start the persistent development database, wait up to 30 seconds for PostgreSQL to accept connections, and then apply all seven migrations. The migration command cannot run if the readiness check fails:
 
 ```bash
 (
@@ -62,6 +62,17 @@ Check the two application endpoints:
 - `http://localhost:8000/health` checks the FastAPI process.
 - `http://localhost:8000/health/database` checks database connectivity without exposing connection details.
 
+## Synthetic Student Pass workflow API
+
+The API accepts an existing synthetic actor UUID in `X-Actor-Id`. This header is a deliberate demo boundary, not authentication; do not expose it in a public deployment. Seed synthetic actors, applicant profiles, institutions, and programmes through test/demo fixtures before calling these routes.
+
+1. `POST /api/v1/applicant/cases` creates a `DRAFT` Student Pass case and profile. The actor must own `applicant_profile_id`.
+2. `POST /api/v1/applicant/cases/{case_id}/submit` records `submitted_at` and changes the case to `SUBMITTED`. It represents handover, not official acceptance or approval.
+3. `GET /api/v1/officer/cases?status=SUBMITTED` lists the officer queue.
+4. `POST /api/v1/officer/cases/{case_id}/start-processing` assigns the case to an officer and changes it to `IN_PROCESS`.
+
+Every transition creates a status-history row, a case event, and an audit event in the same transaction. `accepted_at` remains separate: it may only be populated later with official evidence, whereas `submitted_at` records the applicant’s completed handover.
+
 ## Database model and migrations
 
 The migration chain is:
@@ -70,8 +81,11 @@ The migration chain is:
 2. `0002_case_and_student_pass`
 3. `0003_submissions_and_documents`
 4. `0004_events_audit_and_immutability`
+5. `0005_knowledge_sources_and_requirements`
+6. `0006_rule_versions_and_activation`
+7. `0007_submission_handover_timestamp`
 
-Together they create fourteen domain tables: `actor`, `applicant_profile`, `institution`, `programme`, `case`, `student_pass_case_profile`, `case_status_history`, `case_submission`, `document`, `document_version`, `submission_document`, `document_check`, `case_event`, and `audit_event`.
+Together they create the platform, knowledge, and governance tables. The knowledge release path adds `knowledge_sync_run`, `knowledge_source`, `source_revision`, `requirement`, `requirement_version`, `requirement_source`, `rule_set`, `rule_set_version`, `rule_definition`, `rule_version`, `rule_requirement`, and `approval_event`.
 
 Alembic migrations are the only supported way to create or change the database schema. Do not use `Base.metadata.create_all()` or another direct schema-creation shortcut.
 
@@ -97,7 +111,40 @@ uv run --project backend ruff format --check backend/app backend/tests backend/m
 uv run --project backend mypy backend/app
 ```
 
-Integration and migration tests require `TEST_DATABASE_URL` to point to a database whose name ends in `_test`. The checked-in `.env.example` already targets the Compose test service on port 5433. Migration round-trip tests intentionally move only that guarded test database through `base → head → base → head`.
+## Knowledge release operations
+
+The source monitor is intentionally separate from formal synchronization. A
+monitor can report a changed official page and create or update a review issue,
+but it cannot mutate PostgreSQL rules.
+
+From a clean checkout, validate and synchronize an explicit commit:
+
+```bash
+ruby scripts/validate_knowledge_base.rb
+uv run --project backend python -m app.knowledge.cli sync --root . --git-sha "$(git rev-parse HEAD)"
+```
+
+After inspecting the generated release, submit it for review and record a
+decision with the `review` and `decide` CLI subcommands. Only an
+`ADMINISTRATOR` actor can approve or reject. Activation is separate and
+time-bound:
+
+```bash
+uv run --project backend python -m app.knowledge.cli activate-due --at 2026-09-18T00:00:00+08:00
+```
+
+The CLI uses exit code 0 for success, 2 for repository/validation failures, and
+3 for database failures. Errors are bounded and do not print connection
+details, secrets, source bodies, or applicant data. The FastAPI lifespan
+performs one activation catch-up and can run a cancellable poller when
+`KNOWLEDGE_ACTIVATION_POLL_SECONDS` is positive.
+
+For public use, replace local Docker with a persistent managed PostgreSQL
+database, managed secrets, backups, monitoring, and an independently
+supervised worker. The local Compose stack is a development/demo dependency,
+not an always-on production deployment.
+
+Integration and migration tests require `TEST_DATABASE_URL` to point to a database whose name ends in `_test`. The checked-in `.env.example` already targets the Compose test service on port 5433. Migration round-trip tests intentionally move only that guarded test database through `base → head → 0004 → head → base → head`.
 
 ## Safe shutdown and data lifecycle
 

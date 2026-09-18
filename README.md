@@ -44,15 +44,15 @@ Empty directories contain `.gitkeep` placeholders until their implementation pha
 
 ## Status
 
-Project foundation, the bounded Student Pass V1 official-knowledge package, the Phase 2A logical data design, and the Phase 2B.1 database foundation are implemented. Phase 2B.1 includes the FastAPI runtime, PostgreSQL 18.6, four Alembic revisions, fourteen domain tables, database-level integrity and immutability controls, automated tests, CI configuration, and reviewed dependency-update configuration.
+Project foundation, the bounded Student Pass V1 official-knowledge package, the Phase 2A logical data design, the Phase 2B.2A knowledge-sync/activation foundation, and the Phase 2B.2B synthetic Applicant → Officer vertical slice are implemented. The backend includes PostgreSQL migrations through revision 0007, immutable source and rule history, deterministic bundle validation, atomic synchronization, administrator review, locked activation, monitoring CI, and automated tests.
 
-The only application endpoints are `/health` and `/health/database`; there is no Case business API yet. Phase 2B.1 stores schema metadata and synthetic fixtures only—it does not store real applicant data or real sensitive file bytes.
+The API exposes `/health`, `/health/database`, synthetic applicant draft/submission routes, and synthetic officer queue/processing routes. It uses a demo-only actor header and is not a production authentication system. The knowledge pipeline stores reviewed metadata and synthetic fixtures only—it does not store real applicant data or real sensitive file bytes. See [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md) for the release sequence.
 
-Start with the [Phase 2A design specification](docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md), then review the [logical ERD](docs/architecture/STUDENT_PASS_V1_ERD.md), [data dictionary](docs/architecture/STUDENT_PASS_V1_DATA_DICTIONARY.md), and [backend setup guide](backend/README.md). Phase 2B.2 is the next implementation boundary and has not been implemented.
+Start with the [Phase 2A design specification](docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md), then review the [logical ERD](docs/architecture/STUDENT_PASS_V1_ERD.md), [data dictionary](docs/architecture/STUDENT_PASS_V1_DATA_DICTIONARY.md), [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md), the [Phase 2B.2B design](docs/superpowers/specs/2026-09-18-phase-2b-2b-applicant-officer-vertical-slice-design.md), and [backend setup guide](backend/README.md).
 
 ## Getting started
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [backend setup guide](backend/README.md). Avoid adding Phase 2B.2 business APIs before their workflow and acceptance criteria are separately approved.
+Read [CONTRIBUTING.md](CONTRIBUTING.md), the [backend setup guide](backend/README.md), and [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md). The next product milestone is document metadata/checklists and deterministic rule evaluation against an assigned rule-set version.
 
 ## Disclaimer
 

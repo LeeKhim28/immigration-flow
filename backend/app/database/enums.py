@@ -83,3 +83,37 @@ class DocumentCheckResult(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
     MANUAL_REVIEW = "MANUAL_REVIEW"
+
+
+class KnowledgeSyncStatus(StrEnum):
+    STARTED = "STARTED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
+class KnowledgeSourceStatus(StrEnum):
+    CANDIDATE = "CANDIDATE"
+    REVIEWED = "REVIEWED"
+    SUPERSEDED = "SUPERSEDED"
+    RETIRED = "RETIRED"
+
+
+class RequirementSupportType(StrEnum):
+    PRIMARY = "PRIMARY"
+    SUPPORTING = "SUPPORTING"
+
+
+class RuleSetVersionStatus(StrEnum):
+    DRAFT = "DRAFT"
+    REVIEW = "REVIEW"
+    ACTIVE = "ACTIVE"
+    RETIRED = "RETIRED"
+
+
+class ApprovalDecision(StrEnum):
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class ApplicabilityBasis(StrEnum):
+    IMMIGRATION_SUBMISSION_DATE = "IMMIGRATION_SUBMISSION_DATE"

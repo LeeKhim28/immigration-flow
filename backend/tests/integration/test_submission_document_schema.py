@@ -208,6 +208,18 @@ def _submission(
     return CaseSubmission(**values)
 
 
+def test_submission_records_handover_time_without_official_acceptance(session: Session) -> None:
+    case, submitter = _persist_case(session, "HANDOVER")
+    handover_at = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+    submission = _submission(case, submitter, submitted_at=handover_at)
+    session.add(submission)
+    session.commit()
+    session.expire_all()
+
+    assert submission.submitted_at == handover_at
+    assert submission.accepted_at is None
+
+
 def test_valid_draft_document_version_and_check_round_trip(session: Session) -> None:
     case, worker = _persist_case(session, "VALID-DRAFT")
     document = _document(case, worker, "VALID-DRAFT")

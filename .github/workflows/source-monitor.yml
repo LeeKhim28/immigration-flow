@@ -1,0 +1,60 @@
+name: Source monitor
+
+on:
+  schedule:
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: source-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install locked backend dependencies
+        run: uv sync --locked --project backend
+
+      - name: Restore the previous monitor state when available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .monitor-state
+          previous_run="$(gh run list --workflow source-monitor.yml --status completed --limit 1 --json databaseId --jq '.[0].databaseId')"
+          if [ -n "$previous_run" ]; then
+            gh run download "$previous_run" --name source-monitor-state --dir .monitor-state || true
+          fi
+          if [ ! -f .monitor-state/monitor-state.json ]; then
+            printf '{"sources":{}}\n' > .monitor-state/monitor-state.json
+          fi
+
+      - name: Check reviewed official sources
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: >-
+          uv run --project backend python -m app.knowledge.cli monitor
+          --root .
+          --state .monitor-state/monitor-state.json
+          --output-state .monitor-state/monitor-state.json
+          --trigger scheduled
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-monitor-state
+          path: .monitor-state/monitor-state.json
+          retention-days: 30

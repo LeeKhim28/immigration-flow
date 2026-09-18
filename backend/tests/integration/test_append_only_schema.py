@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError
 
-EXPECTED_REVISION = "0004_events_audit_and_immutability"
+EXPECTED_REVISION = "0007_submission_handover_timestamp"
 
 
 class SeededRecords(NamedTuple):

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str = Field(min_length=1)
     test_database_url: str | None = None
+    knowledge_activation_poll_seconds: int = 60
 
 
 @lru_cache

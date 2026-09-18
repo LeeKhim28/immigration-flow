@@ -235,17 +235,20 @@ class CaseEvent(Base):
 
 class AuditEvent(Base):
     __tablename__ = "audit_event"
-    __table_args__ = (Index("ix_audit_event_case_id_occurred_at", "case_id", "occurred_at"),)
+    __table_args__ = (
+        Index("ix_audit_event_case_id_occurred_at", "case_id", "occurred_at"),
+        Index("ix_audit_event_entity_id_occurred_at", "entity_type", "entity_id", "occurred_at"),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
         primary_key=True,
         server_default=text("gen_random_uuid()"),
     )
-    case_id: Mapped[UUID] = mapped_column(
+    case_id: Mapped[UUID | None] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
         ForeignKey("case.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
     )
     actor_id: Mapped[UUID | None] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
