@@ -101,3 +101,19 @@ class KnowledgeSourceStatus(StrEnum):
 class RequirementSupportType(StrEnum):
     PRIMARY = "PRIMARY"
     SUPPORTING = "SUPPORTING"
+
+
+class RuleSetVersionStatus(StrEnum):
+    DRAFT = "DRAFT"
+    REVIEW = "REVIEW"
+    ACTIVE = "ACTIVE"
+    RETIRED = "RETIRED"
+
+
+class ApprovalDecision(StrEnum):
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class ApplicabilityBasis(StrEnum):
+    IMMIGRATION_SUBMISSION_DATE = "IMMIGRATION_SUBMISSION_DATE"

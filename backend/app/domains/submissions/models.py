@@ -119,6 +119,11 @@ class CaseSubmission(Base):
         ForeignKey("actor.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
     accepted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

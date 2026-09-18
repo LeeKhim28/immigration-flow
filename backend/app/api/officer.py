@@ -1,0 +1,40 @@
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException
+
+from app.api.dependencies import CurrentActor, DatabaseSession
+from app.api.schemas import CaseResponse
+from app.database.enums import CaseStatus
+from app.domains.cases.service import (
+    CaseWorkflowError,
+    list_officer_cases,
+    start_case_processing,
+)
+
+router = APIRouter(prefix="/api/v1/officer", tags=["officer"])
+
+
+@router.get("/cases", response_model=list[CaseResponse])
+def list_cases(
+    session: DatabaseSession,
+    actor: CurrentActor,
+    status: CaseStatus = CaseStatus.SUBMITTED,
+) -> list[CaseResponse]:
+    try:
+        cases = list_officer_cases(session, actor, status)
+    except CaseWorkflowError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return [CaseResponse.model_validate(case) for case in cases]
+
+
+@router.post("/cases/{case_id}/start-processing", response_model=CaseResponse)
+def start_processing(
+    case_id: UUID,
+    session: DatabaseSession,
+    actor: CurrentActor,
+) -> CaseResponse:
+    try:
+        case = start_case_processing(session, actor, case_id)
+    except CaseWorkflowError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return CaseResponse.model_validate(case)

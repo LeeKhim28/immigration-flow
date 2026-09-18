@@ -11,6 +11,8 @@ from sqlalchemy import create_engine, text
 from app.database.models import Base
 
 EXPECTED_REVISIONS = (
+    ("0007_submission_handover_timestamp", "0006_rule_versions_and_activation"),
+    ("0006_rule_versions_and_activation", "0005_knowledge_sources_and_requirements"),
     ("0005_knowledge_sources_and_requirements", "0004_events_audit_and_immutability"),
     ("0004_events_audit_and_immutability", "0003_submissions_and_documents"),
     ("0003_submissions_and_documents", "0002_case_and_student_pass"),
@@ -38,6 +40,12 @@ EXPECTED_TABLES = {
     "requirement",
     "requirement_version",
     "requirement_source",
+    "rule_set",
+    "rule_set_version",
+    "rule_definition",
+    "rule_version",
+    "rule_requirement",
+    "approval_event",
 }
 APPLICATION_SCHEMA = "public"
 FunctionIdentity = tuple[str, str, str]
@@ -48,6 +56,10 @@ EXPECTED_FUNCTIONS = {
     (APPLICATION_SCHEMA, "prevent_confirmed_initial_mutation", ""),
     (APPLICATION_SCHEMA, "prevent_knowledge_history_mutation", ""),
     (APPLICATION_SCHEMA, "enforce_requirement_source_provenance", ""),
+    (APPLICATION_SCHEMA, "prevent_rule_set_version_mutation", ""),
+    (APPLICATION_SCHEMA, "enforce_rule_set_version_has_rule", ""),
+    (APPLICATION_SCHEMA, "enforce_rule_version_has_requirement", ""),
+    (APPLICATION_SCHEMA, "enforce_administrator_approval", ""),
 }
 EXPECTED_TRIGGERS = {
     (
@@ -160,6 +172,70 @@ EXPECTED_TRIGGERS = {
         "requirement_source",
         APPLICATION_SCHEMA,
         "enforce_requirement_source_provenance",
+        "",
+    ),
+    (
+        "prevent_rule_version_mutation",
+        APPLICATION_SCHEMA,
+        "rule_version",
+        APPLICATION_SCHEMA,
+        "prevent_append_only_mutation",
+        "",
+    ),
+    (
+        "prevent_rule_requirement_mutation",
+        APPLICATION_SCHEMA,
+        "rule_requirement",
+        APPLICATION_SCHEMA,
+        "prevent_append_only_mutation",
+        "",
+    ),
+    (
+        "prevent_approval_event_mutation",
+        APPLICATION_SCHEMA,
+        "approval_event",
+        APPLICATION_SCHEMA,
+        "prevent_append_only_mutation",
+        "",
+    ),
+    (
+        "prevent_rule_set_version_mutation",
+        APPLICATION_SCHEMA,
+        "rule_set_version",
+        APPLICATION_SCHEMA,
+        "prevent_rule_set_version_mutation",
+        "",
+    ),
+    (
+        "rule_set_version_requires_rule",
+        APPLICATION_SCHEMA,
+        "rule_set_version",
+        APPLICATION_SCHEMA,
+        "enforce_rule_set_version_has_rule",
+        "",
+    ),
+    (
+        "rule_version_requires_requirement",
+        APPLICATION_SCHEMA,
+        "rule_version",
+        APPLICATION_SCHEMA,
+        "enforce_rule_version_has_requirement",
+        "",
+    ),
+    (
+        "rule_requirement_requires_version",
+        APPLICATION_SCHEMA,
+        "rule_requirement",
+        APPLICATION_SCHEMA,
+        "enforce_rule_version_has_requirement",
+        "",
+    ),
+    (
+        "approval_requires_administrator",
+        APPLICATION_SCHEMA,
+        "approval_event",
+        APPLICATION_SCHEMA,
+        "enforce_administrator_approval",
         "",
     ),
 }

@@ -53,17 +53,17 @@ User-facing explanation with citations and limitations
 - Runtime-derived records remain traceable to source ID and version.
 - No real applicant data or secrets are stored in the knowledge base.
 
-## Not included yet
+## Deliberately outside the Phase 1 evidence package
 
-- Automated website crawling
+- Automated website crawling (the Phase 2B monitor now checks only explicitly reviewed sources)
 - Full-page copyrighted archives without permission
 - Embeddings or a vector database
 - RAG prompts or chat responses
-- Eligibility determinations
+- Eligibility determinations (the Phase 2B rule bundle is deterministic preparation guidance, not a government decision)
 - Coverage of every Immigration Department service
 
 ## Phase 2A handoff
 
 The logical Student Pass V1 data model is approved in `docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md`. Its ERD, data dictionary, and architecture decisions define the generic-case/service-profile model, immutable knowledge versions, official-submission cutoff behavior, and re-evaluation policy.
 
-The next milestone is Phase 2B: translate the approved logical model into reviewed PostgreSQL types, constraints, migrations, and database-level tests without expanding the product beyond the Student Pass V1 vertical.
+The Phase 2B.1 and Phase 2B.2A milestones translate the approved logical model into reviewed PostgreSQL types, constraints, immutable knowledge versions, synchronization, human approval, and time-bound activation without expanding the product beyond the Student Pass V1 vertical. Formal case business APIs remain a later milestone.

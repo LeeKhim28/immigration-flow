@@ -11,7 +11,9 @@ from tempfile import NamedTemporaryFile
 
 import httpx
 import yaml
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.knowledge.activation import ActivationCoordinator
 from app.knowledge.contracts import (
     MonitorBaseline,
     MonitorOutcome,
@@ -24,8 +26,10 @@ from app.knowledge.github_issues import (
     GitHubIssueGateway,
     ReviewIssueGateway,
 )
+from app.knowledge.governance import decide_release, submit_for_review
 from app.knowledge.monitor import check_source
 from app.knowledge.repository import load_monitor_baselines, load_repository_document
+from app.knowledge.sync import KnowledgeSynchronizer
 from app.knowledge.url_safety import retrieve_source
 
 
@@ -60,6 +64,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     bootstrap.add_argument("--root", type=Path, required=True, help="Repository root directory.")
     bootstrap.add_argument("--output", type=Path, required=True, help="Candidate YAML output file.")
+
+    sync = subparsers.add_parser("sync", help="Import a reviewed knowledge bundle into PostgreSQL.")
+    sync.add_argument("--root", type=Path, required=True)
+    sync.add_argument("--git-sha", required=True)
+
+    review = subparsers.add_parser("review", help="Submit a synchronized release for review.")
+    review.add_argument("--version-id", required=True)
+    review.add_argument("--actor-id", required=True)
+
+    decide = subparsers.add_parser("decide", help="Record an administrator release decision.")
+    decide.add_argument("--version-id", required=True)
+    decide.add_argument("--administrator-id", required=True)
+    decide.add_argument("--decision", choices=("APPROVED", "REJECTED"), required=True)
+    decide.add_argument("--notes")
+
+    activate = subparsers.add_parser(
+        "activate-due", help="Activate approved releases whose effective time has arrived."
+    )
+    activate.add_argument("--at")
     return parser
 
 
@@ -68,10 +91,84 @@ def main(arguments: Sequence[str] | None = None) -> int:
     try:
         if parsed.command == "monitor":
             return _monitor(parsed)
-        return _bootstrap_baselines(parsed)
+        if parsed.command == "bootstrap-baselines":
+            return _bootstrap_baselines(parsed)
+        if parsed.command == "sync":
+            result = KnowledgeSynchronizer().sync(parsed.root, parsed.git_sha)
+            print(
+                json.dumps(
+                    {
+                        "run_id": str(result.run_id),
+                        "status": result.status.value,
+                        "reused": result.reused,
+                    }
+                )
+            )
+            return 0
+        if parsed.command == "review":
+            from uuid import UUID
+
+            from app.database.session import get_db_session
+
+            session = next(get_db_session())
+            try:
+                submit_for_review(
+                    session, UUID(parsed.version_id), UUID(parsed.actor_id), datetime.now(UTC)
+                )
+                session.commit()
+            finally:
+                session.close()
+            print("review submitted")
+            return 0
+        if parsed.command == "decide":
+            from uuid import UUID
+
+            from app.database.enums import ApprovalDecision
+            from app.database.session import get_db_session
+
+            session = next(get_db_session())
+            try:
+                decide_release(
+                    session,
+                    UUID(parsed.version_id),
+                    UUID(parsed.administrator_id),
+                    ApprovalDecision(parsed.decision),
+                    parsed.notes,
+                    datetime.now(UTC),
+                )
+                session.commit()
+            finally:
+                session.close()
+            print("decision recorded")
+            return 0
+        from app.database.session import get_db_session
+
+        session = next(get_db_session())
+        try:
+            when = (
+                datetime.fromisoformat(parsed.at.replace("Z", "+00:00"))
+                if parsed.at
+                else datetime.now(UTC)
+            )
+            summary = ActivationCoordinator().activate_due(session, when)
+        finally:
+            session.close()
+        print(
+            json.dumps(
+                {
+                    "activated": summary.activated,
+                    "skipped": summary.skipped,
+                    "failed": summary.failed,
+                }
+            )
+        )
+        return 0
     except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
-        return 1
+        return 2
+    except SQLAlchemyError:
+        print("error: database operation failed", file=sys.stderr)
+        return 3
 
 
 def _monitor(arguments: argparse.Namespace) -> int:
