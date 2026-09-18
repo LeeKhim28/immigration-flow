@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.database.enums import (
     ActorType,
+    ApplicabilityBasis,
     ApplicantLocation,
     ApplicationType,
     CaseStage,
     CaseStatus,
     InstitutionType,
+    RuleSetVersionStatus,
     ServiceType,
     SubmissionChannel,
     SubmissionType,
@@ -21,11 +23,18 @@ from app.database.models import (
     ApplicantProfile,
     AuditEvent,
     CaseEvent,
+    CaseRequirement,
+    CaseRuleAssignment,
     CaseStatusHistory,
     CaseSubmission,
     ImmigrationCase,
     Institution,
     Programme,
+    RequirementVersion,
+    RuleRequirement,
+    RuleSet,
+    RuleSetVersion,
+    RuleVersion,
     StudentPassCaseProfile,
 )
 
@@ -125,6 +134,72 @@ def submit_case_to_immigration(
         submitted_at=occurred_at,
     )
     session.add(submission)
+    release = _resolve_applicable_release(session, case, occurred_at)
+    requirement_versions = list(
+        session.scalars(
+            select(RequirementVersion)
+            .join(
+                RuleRequirement,
+                RuleRequirement.requirement_version_id == RequirementVersion.id,
+            )
+            .join(RuleVersion, RuleVersion.id == RuleRequirement.rule_version_id)
+            .where(RuleVersion.rule_set_version_id == release.id)
+            .distinct()
+            .order_by(RequirementVersion.id)
+        )
+    )
+    if not requirement_versions:
+        raise CaseWorkflowError(409, "active rule set has no material requirements")
+
+    assignment = CaseRuleAssignment(
+        case_id=case.id,
+        rule_set_version_id=release.id,
+        assignment_reason="INITIAL_SUBMISSION",
+        assigned_at=occurred_at,
+        assigned_by_actor_id=actor.id,
+    )
+    session.add(assignment)
+    session.flush()
+    session.add_all(
+        [
+            CaseRequirement(
+                case_id=case.id,
+                requirement_version_id=requirement_version.id,
+                status="PENDING",
+            )
+            for requirement_version in requirement_versions
+        ]
+    )
+    submission.applicable_rule_set_version_id = release.id
+    case.current_rule_set_version_id = release.id
+    session.add_all(
+        [
+            CaseEvent(
+                case_id=case.id,
+                event_type="CASE_RULE_SET_ASSIGNED",
+                event_payload={
+                    "rule_set_version_id": str(release.id),
+                    "semantic_version": release.semantic_version,
+                    "requirement_count": len(requirement_versions),
+                },
+                occurred_at=occurred_at,
+                actor_id=actor.id,
+            ),
+            AuditEvent(
+                case_id=case.id,
+                actor_id=actor.id,
+                action="CASE_RULE_SET_ASSIGNED",
+                entity_type="CASE_RULE_ASSIGNMENT",
+                entity_id=assignment.id,
+                after_summary={
+                    "rule_set_version_id": str(release.id),
+                    "semantic_version": release.semantic_version,
+                    "requirement_count": len(requirement_versions),
+                },
+                occurred_at=occurred_at,
+            ),
+        ]
+    )
     _transition_case(
         session,
         case,
@@ -139,6 +214,33 @@ def submit_case_to_immigration(
     session.refresh(case)
     session.refresh(submission)
     return case, submission
+
+
+def _resolve_applicable_release(
+    session: Session,
+    case: ImmigrationCase,
+    submitted_at: datetime,
+) -> RuleSetVersion:
+    release = session.scalar(
+        select(RuleSetVersion)
+        .join(RuleSet, RuleSet.id == RuleSetVersion.rule_set_id)
+        .where(
+            RuleSet.service_type == case.service_type,
+            RuleSetVersion.status == RuleSetVersionStatus.ACTIVE,
+            RuleSetVersion.applicability_basis
+            == ApplicabilityBasis.IMMIGRATION_SUBMISSION_DATE,
+            RuleSetVersion.submission_cutoff_at.is_not(None),
+            RuleSetVersion.submission_cutoff_at <= submitted_at,
+        )
+        .order_by(
+            RuleSetVersion.submission_cutoff_at.desc(),
+            RuleSetVersion.effective_at.desc(),
+            RuleSetVersion.id.desc(),
+        )
+    )
+    if release is None:
+        raise CaseWorkflowError(409, "no active rule set applies to the submission date")
+    return release
 
 
 def list_officer_cases(

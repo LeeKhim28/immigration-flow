@@ -45,7 +45,10 @@ def session(test_database_url: str) -> Iterator[Session]:
     engine: Engine = create_engine(test_database_url)
     with engine.begin() as connection:
         connection.execute(
-            text("TRUNCATE TABLE actor, institution, knowledge_sync_run, rule_set CASCADE")
+            text(
+                "TRUNCATE TABLE actor, institution, knowledge_sync_run, "
+                "knowledge_source, requirement, rule_set, rule_definition CASCADE"
+            )
         )
     database_session = Session(engine)
     try:
@@ -55,7 +58,10 @@ def session(test_database_url: str) -> Iterator[Session]:
         database_session.close()
         with engine.begin() as connection:
             connection.execute(
-                text("TRUNCATE TABLE actor, institution, knowledge_sync_run, rule_set CASCADE")
+                text(
+                    "TRUNCATE TABLE actor, institution, knowledge_sync_run, "
+                    "knowledge_source, requirement, rule_set, rule_definition CASCADE"
+                )
             )
         engine.dispose()
 
