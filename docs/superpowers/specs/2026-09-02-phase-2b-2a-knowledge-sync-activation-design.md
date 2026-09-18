@@ -310,10 +310,10 @@ Phase 2B.2A is complete only when:
 
 Phase 2B.2B will use the immutable active releases and activation history created here to implement:
 
-- the initial `case_rule_assignment` at confirmed Immigration acceptance;
+- the initial `case_rule_assignment` at applicant handover;
 - `case.current_rule_set_version_id` and `case_submission.applicable_rule_set_version_id`;
 - reproducible rule evaluations and findings;
 - case requirements, tasks, and seven-calendar-day deadlines; and
-- automatic reassignment and re-evaluation only when an approved policy explicitly covers a non-final case whose Immigration-accepted submission is on or after the official cutoff.
+- automatic reassignment and re-evaluation only when an approved policy explicitly covers a non-final case whose `submitted_at` is on or after the official cutoff.
 
-Cases accepted before the cutoff retain their previous rule version, and completed cases are not automatically reopened, as required by ADR 0003.
+Cases handed over before the cutoff retain their previous rule version, and completed cases are not automatically reopened, as required by ADR 0003.

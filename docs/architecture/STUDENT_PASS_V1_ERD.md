@@ -104,6 +104,7 @@ erDiagram
         uuid id PK
         uuid case_id FK
         string submission_type
+        timestamp submitted_at
         timestamp accepted_at
         string immigration_reference
         uuid receipt_document_version_id FK
@@ -168,7 +169,7 @@ erDiagram
 ## Reading the model
 
 - `case` is reusable platform state; `student_pass_case_profile` contains service-specific facts.
-- A confirmed `INITIAL` `case_submission` creates the first `case_rule_assignment`. An approved policy transition may add a superseding assignment for an affected non-final case without overwriting history.
+- `submitted_at` marks the applicant’s completed handover and determines the initial rule applicability. A later `accepted_at` and receipt evidence record Immigration acceptance without changing that boundary. A confirmed `INITIAL` `case_submission` creates the first `case_rule_assignment`. An approved policy transition may add a superseding assignment for an affected non-final case without overwriting history.
 - `document_version` is immutable, and `submission_document` records the exact evidence handed over in each submission.
 - Knowledge provenance forms a traceable chain: `source_revision` → `requirement_version` → `rule_version` → `rule_evaluation`.
 - Current state is queryable from operational tables; history remains available through append-only status, event, audit, version, and evaluation records.
