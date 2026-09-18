@@ -64,3 +64,15 @@ class DocumentMetadataResponse(BaseModel):
     document_type: DocumentType
     version_number: int
     storage_reference: str
+
+
+class ChecklistRequirementResponse(BaseModel):
+    requirement_code: str
+    statement: str
+    machine_handling: str
+    status: str
+
+
+class CaseChecklistResponse(BaseModel):
+    rule_set_version: str
+    requirements: list[ChecklistRequirementResponse]

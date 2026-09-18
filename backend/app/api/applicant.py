@@ -4,7 +4,9 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import CurrentActor, DatabaseSession
 from app.api.schemas import (
+    CaseChecklistResponse,
     CaseResponse,
+    ChecklistRequirementResponse,
     DocumentMetadataResponse,
     DraftStudentPassCaseRequest,
     RecordDocumentMetadataRequest,
@@ -15,6 +17,7 @@ from app.domains.cases.service import (
     CaseWorkflowError,
     DraftStudentPassCaseCommand,
     create_student_pass_draft,
+    get_case_checklist,
     submit_case_to_immigration,
 )
 from app.domains.documents.service import DocumentMetadataCommand, record_document_metadata
@@ -94,4 +97,28 @@ def record_document(
         document_type=document.document_type,
         version_number=version.version_number,
         storage_reference=version.storage_reference,
+    )
+
+
+@router.get("/cases/{case_id}/checklist", response_model=CaseChecklistResponse)
+def get_checklist(
+    case_id: UUID,
+    session: DatabaseSession,
+    actor: CurrentActor,
+) -> CaseChecklistResponse:
+    try:
+        checklist = get_case_checklist(session, actor, case_id)
+    except CaseWorkflowError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return CaseChecklistResponse(
+        rule_set_version=checklist.rule_set_version,
+        requirements=[
+            ChecklistRequirementResponse(
+                requirement_code=item.requirement_code,
+                statement=item.statement,
+                machine_handling=item.machine_handling,
+                status=item.status,
+            )
+            for item in checklist.requirements
+        ],
     )

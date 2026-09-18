@@ -505,6 +505,68 @@ def test_submission_without_an_active_release_keeps_case_as_draft(
     )
 
 
+def test_case_owner_reads_materialized_requirement_checklist(
+    client: TestClient,
+    session: Session,
+) -> None:
+    applicant, profile, institution, programme = _seed_applicant_context(session, "CHECKLIST")
+    case_id = _create_draft(
+        client,
+        applicant,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-CHECKLIST",
+    )
+    _submit_draft(client, applicant, case_id)
+
+    response = client.get(
+        f"/api/v1/applicant/cases/{case_id}/checklist",
+        headers={"X-Actor-Id": str(applicant.id)},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "rule_set_version": "1.0.0",
+        "requirements": [
+            {
+                "requirement_code": "SPV1-REQ-CASE-API",
+                "statement": "Provide the synthetic Student Pass document.",
+                "machine_handling": "Check document metadata.",
+                "status": "PENDING",
+            }
+        ],
+    }
+
+
+def test_other_applicant_cannot_read_case_requirement_checklist(
+    client: TestClient,
+    session: Session,
+) -> None:
+    owner, profile, institution, programme = _seed_applicant_context(session, "CHECKLIST-OWNER")
+    other, _other_profile, _other_institution, _other_programme = _seed_applicant_context(
+        session,
+        "CHECKLIST-OTHER",
+    )
+    case_id = _create_draft(
+        client,
+        owner,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-CHECKLIST-OWNER",
+    )
+    _submit_draft(client, owner, case_id)
+
+    response = client.get(
+        f"/api/v1/applicant/cases/{case_id}/checklist",
+        headers={"X-Actor-Id": str(other.id)},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "actor does not own the case"}
+
+
 def test_officer_lists_submitted_cases(client: TestClient, session: Session) -> None:
     applicant, profile, institution, programme = _seed_applicant_context(session, "QUEUE")
     case_id = _create_draft(

@@ -30,6 +30,7 @@ from app.database.models import (
     ImmigrationCase,
     Institution,
     Programme,
+    Requirement,
     RequirementVersion,
     RuleRequirement,
     RuleSet,
@@ -58,6 +59,20 @@ class DraftStudentPassCaseCommand:
     applicant_location: ApplicantLocation
     nationality_code: str
     passport_expires_at: datetime
+
+
+@dataclass(frozen=True)
+class CaseChecklistItem:
+    requirement_code: str
+    statement: str
+    machine_handling: str
+    status: str
+
+
+@dataclass(frozen=True)
+class CaseChecklist:
+    rule_set_version: str
+    requirements: list[CaseChecklistItem]
 
 
 def create_student_pass_draft(
@@ -227,8 +242,7 @@ def _resolve_applicable_release(
         .where(
             RuleSet.service_type == case.service_type,
             RuleSetVersion.status == RuleSetVersionStatus.ACTIVE,
-            RuleSetVersion.applicability_basis
-            == ApplicabilityBasis.IMMIGRATION_SUBMISSION_DATE,
+            RuleSetVersion.applicability_basis == ApplicabilityBasis.IMMIGRATION_SUBMISSION_DATE,
             RuleSetVersion.submission_cutoff_at.is_not(None),
             RuleSetVersion.submission_cutoff_at <= submitted_at,
         )
@@ -258,6 +272,44 @@ def list_officer_cases(
             .order_by(ImmigrationCase.created_at, ImmigrationCase.id)
         )
     )
+
+
+def get_case_checklist(
+    session: Session,
+    actor: Actor,
+    case_id: UUID,
+) -> CaseChecklist:
+    _require_actor_type(actor, ActorType.APPLICANT)
+    case = _require_owned_case(session, case_id, actor)
+    if case.current_rule_set_version_id is None:
+        raise CaseWorkflowError(409, "case has no assigned rule set")
+    release = _require_record(
+        session.get(RuleSetVersion, case.current_rule_set_version_id),
+        "rule set version",
+    )
+    requirements = []
+    for case_requirement in session.scalars(
+        select(CaseRequirement)
+        .where(CaseRequirement.case_id == case.id)
+        .order_by(CaseRequirement.created_at, CaseRequirement.id)
+    ):
+        version = _require_record(
+            session.get(RequirementVersion, case_requirement.requirement_version_id),
+            "requirement version",
+        )
+        requirement = _require_record(
+            session.get(Requirement, version.requirement_id),
+            "requirement",
+        )
+        requirements.append(
+            CaseChecklistItem(
+                requirement_code=requirement.requirement_code,
+                statement=version.statement,
+                machine_handling=version.machine_handling,
+                status=case_requirement.status,
+            )
+        )
+    return CaseChecklist(rule_set_version=release.semantic_version, requirements=requirements)
 
 
 def start_case_processing(
