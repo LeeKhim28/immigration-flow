@@ -83,3 +83,21 @@ class DocumentCheckResult(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
     MANUAL_REVIEW = "MANUAL_REVIEW"
+
+
+class KnowledgeSyncStatus(StrEnum):
+    STARTED = "STARTED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
+class KnowledgeSourceStatus(StrEnum):
+    CANDIDATE = "CANDIDATE"
+    REVIEWED = "REVIEWED"
+    SUPERSEDED = "SUPERSEDED"
+    RETIRED = "RETIRED"
+
+
+class RequirementSupportType(StrEnum):
+    PRIMARY = "PRIMARY"
+    SUPPORTING = "SUPPORTING"

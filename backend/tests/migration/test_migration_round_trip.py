@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, text
 from app.database.models import Base
 
 EXPECTED_REVISIONS = (
+    ("0005_knowledge_sources_and_requirements", "0004_events_audit_and_immutability"),
     ("0004_events_audit_and_immutability", "0003_submissions_and_documents"),
     ("0003_submissions_and_documents", "0002_case_and_student_pass"),
     ("0002_case_and_student_pass", "0001_identity_and_reference"),
@@ -31,6 +32,12 @@ EXPECTED_TABLES = {
     "document_check",
     "case_event",
     "audit_event",
+    "knowledge_sync_run",
+    "knowledge_source",
+    "source_revision",
+    "requirement",
+    "requirement_version",
+    "requirement_source",
 }
 APPLICATION_SCHEMA = "public"
 FunctionIdentity = tuple[str, str, str]
@@ -39,6 +46,8 @@ EXPECTED_FUNCTIONS = {
     (APPLICATION_SCHEMA, "enforce_student_pass_case_profile", ""),
     (APPLICATION_SCHEMA, "prevent_append_only_mutation", ""),
     (APPLICATION_SCHEMA, "prevent_confirmed_initial_mutation", ""),
+    (APPLICATION_SCHEMA, "prevent_knowledge_history_mutation", ""),
+    (APPLICATION_SCHEMA, "enforce_requirement_source_provenance", ""),
 }
 EXPECTED_TRIGGERS = {
     (
@@ -111,6 +120,46 @@ EXPECTED_TRIGGERS = {
         "document_version",
         APPLICATION_SCHEMA,
         "prevent_append_only_mutation",
+        "",
+    ),
+    (
+        "prevent_source_revision_mutation",
+        APPLICATION_SCHEMA,
+        "source_revision",
+        APPLICATION_SCHEMA,
+        "prevent_knowledge_history_mutation",
+        "",
+    ),
+    (
+        "prevent_requirement_version_mutation",
+        APPLICATION_SCHEMA,
+        "requirement_version",
+        APPLICATION_SCHEMA,
+        "prevent_knowledge_history_mutation",
+        "",
+    ),
+    (
+        "prevent_requirement_source_mutation",
+        APPLICATION_SCHEMA,
+        "requirement_source",
+        APPLICATION_SCHEMA,
+        "prevent_knowledge_history_mutation",
+        "",
+    ),
+    (
+        "enforce_requirement_source_provenance_on_version",
+        APPLICATION_SCHEMA,
+        "requirement_version",
+        APPLICATION_SCHEMA,
+        "enforce_requirement_source_provenance",
+        "",
+    ),
+    (
+        "enforce_requirement_source_provenance_on_link",
+        APPLICATION_SCHEMA,
+        "requirement_source",
+        APPLICATION_SCHEMA,
+        "enforce_requirement_source_provenance",
         "",
     ),
 }

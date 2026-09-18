@@ -1,5 +1,8 @@
 import json
+import re
+import subprocess
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -13,6 +16,21 @@ _OFFICIAL_SOURCES_DIRECTORY = Path("data/official-sources")
 _REGISTRY_FILE = "registry.yaml"
 _BASELINES_FILE = "monitoring-baselines.yaml"
 _SCHEMA_FILE = "monitoring-baseline.schema.json"
+_REQUIREMENT_FILE = Path("data/official-sources/extracts/student-pass-v1.requirements.yaml")
+_RULE_FILE = Path("data/rules/student-pass-v1.yaml")
+_REQUIREMENT_SCHEMA_FILE = Path("data/official-sources/extracts/requirement-set.schema.json")
+_RULE_SCHEMA_FILE = Path("data/rules/rule-set.schema.json")
+_DATASET_FILE = Path("data/official-sources/extracts/sev-required-countries.yaml")
+_SHA_PATTERN = re.compile(r"^[0-9a-f]{40,64}$")
+
+
+@dataclass(frozen=True, slots=True)
+class KnowledgeBundle:
+    git_commit_sha: str
+    registry: Mapping[str, object]
+    requirements: Mapping[str, object]
+    rule_set: Mapping[str, object]
+    datasets: tuple[Mapping[str, object], ...]
 
 
 def load_monitor_baselines(root: Path) -> Sequence[MonitorBaseline]:
@@ -72,6 +90,126 @@ def load_monitor_baselines(root: Path) -> Sequence[MonitorBaseline]:
             )
         )
     return tuple(baselines)
+
+
+def load_knowledge_bundle(root: Path, git_sha: str) -> KnowledgeBundle:
+    if _SHA_PATTERN.fullmatch(git_sha) is None:
+        raise ValueError("git SHA must be lowercase hexadecimal with 40 to 64 characters")
+    head, dirty_files = _git_state(root)
+    if dirty_files:
+        raise ValueError("repository checkout is dirty")
+    if head != git_sha:
+        raise ValueError("provided git SHA does not match repository HEAD")
+
+    sources = _load_mapping(root / _OFFICIAL_SOURCES_DIRECTORY / _REGISTRY_FILE)
+    requirements = _load_mapping(root / _REQUIREMENT_FILE)
+    rule_set = _load_mapping(root / _RULE_FILE)
+    requirement_schema = _load_mapping(root / _REQUIREMENT_SCHEMA_FILE)
+    rule_schema = _load_mapping(root / _RULE_SCHEMA_FILE)
+    _validate_schema(requirements, requirement_schema)
+    _validate_schema(rule_set, rule_schema)
+    _validate_bundle_references(sources, requirements, rule_set)
+    datasets = (_load_mapping(root / _DATASET_FILE),)
+    return KnowledgeBundle(
+        git_commit_sha=git_sha,
+        registry=sources,
+        requirements=requirements,
+        rule_set=rule_set,
+        datasets=datasets,
+    )
+
+
+def _git_state(root: Path) -> tuple[str, str]:
+    try:
+        head_result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        status_result = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError("could not inspect repository Git state") from error
+    return head_result.stdout.strip(), status_result.stdout
+
+
+def _validate_bundle_references(
+    registry: Mapping[str, object],
+    requirements: Mapping[str, object],
+    rule_set: Mapping[str, object],
+) -> None:
+    source_records = registry.get("sources")
+    requirement_records = requirements.get("requirements")
+    rule_records = rule_set.get("rules")
+    if not isinstance(source_records, list) or not isinstance(requirement_records, list):
+        raise ValueError("knowledge bundle records must be lists")
+    if not isinstance(rule_records, list):
+        raise ValueError("rule set records must be a list")
+
+    sources: dict[str, Mapping[str, object]] = {}
+    for source in source_records:
+        if not isinstance(source, Mapping):
+            raise ValueError("source registry entry must be an object")
+        source_id = _required_text(source, "id")
+        if source_id in sources:
+            raise ValueError(f"duplicate source ID: {source_id}")
+        sources[source_id] = source
+
+    requirements_by_id: dict[str, Mapping[str, object]] = {}
+    for requirement in requirement_records:
+        if not isinstance(requirement, Mapping):
+            raise ValueError("requirement entry must be an object")
+        requirement_id = _required_text(requirement, "id")
+        if requirement_id in requirements_by_id:
+            raise ValueError(f"duplicate requirement ID: {requirement_id}")
+        requirements_by_id[requirement_id] = requirement
+        for citation in _required_list(requirement, "sources"):
+            if not isinstance(citation, Mapping):
+                raise ValueError(f"invalid source citation in {requirement_id}")
+            source_id = _required_text(citation, "source_id")
+            if source_id not in sources:
+                raise ValueError(f"unknown source ID {source_id} in {requirement_id}")
+
+    if requirements.get("version") != rule_set.get("version"):
+        raise ValueError("requirement and rule versions differ")
+    seen_priorities: set[int] = set()
+    rule_ids: set[str] = set()
+    for rule in rule_records:
+        if not isinstance(rule, Mapping):
+            raise ValueError("rule entry must be an object")
+        rule_id = _required_text(rule, "id")
+        if rule_id in rule_ids:
+            raise ValueError(f"duplicate rule ID: {rule_id}")
+        rule_ids.add(rule_id)
+        priority = rule.get("priority")
+        if not isinstance(priority, int) or priority in seen_priorities:
+            raise ValueError(f"duplicate or invalid rule priority in {rule_id}")
+        seen_priorities.add(priority)
+        for requirement_id in _required_text_list(rule, "requirement_ids"):
+            if requirement_id not in requirements_by_id:
+                raise ValueError(f"unknown requirement ID {requirement_id} in {rule_id}")
+        for source_id in _required_text_list(rule, "source_ids"):
+            if source_id not in sources:
+                raise ValueError(f"unknown source ID {source_id} in {rule_id}")
+
+
+def _required_list(record: Mapping[str, object], field_name: str) -> list[object]:
+    value = record.get(field_name)
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{field_name} must be a non-empty list")
+    return value
+
+
+def _required_text_list(record: Mapping[str, object], field_name: str) -> list[str]:
+    values = _required_list(record, field_name)
+    if any(not isinstance(value, str) or not value for value in values):
+        raise ValueError(f"{field_name} must contain only non-empty text")
+    return [value for value in values if isinstance(value, str)]
 
 
 def _load_mapping(path: Path) -> Mapping[str, object]:

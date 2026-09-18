@@ -3,6 +3,14 @@ from app.domains.cases.models import AuditEvent, CaseEvent, CaseStatusHistory, I
 from app.domains.documents.models import Document, DocumentCheck, DocumentVersion
 from app.domains.identity.models import Actor, ApplicantProfile
 from app.domains.institutions.models import Institution, Programme
+from app.domains.knowledge.models import (
+    KnowledgeSource,
+    KnowledgeSyncRun,
+    Requirement,
+    RequirementSource,
+    RequirementVersion,
+    SourceRevision,
+)
 from app.domains.student_pass.models import StudentPassCaseProfile
 from app.domains.submissions.models import CaseSubmission, SubmissionDocument
 
@@ -19,7 +27,13 @@ __all__ = [
     "DocumentVersion",
     "ImmigrationCase",
     "Institution",
+    "KnowledgeSource",
+    "KnowledgeSyncRun",
     "Programme",
+    "Requirement",
+    "RequirementSource",
+    "RequirementVersion",
+    "SourceRevision",
     "StudentPassCaseProfile",
     "SubmissionDocument",
 ]
