@@ -1,6 +1,6 @@
 # ImmigrationFlow backend
 
-Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B adds a minimal synthetic Student Pass workflow: applicant draft creation, formal handover to Immigration, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, seven ordered Alembic revisions, immutable source/requirement/rule history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
+Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B adds a minimal synthetic Student Pass workflow: applicant draft creation, document-metadata capture, formal handover to Immigration, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, seven ordered Alembic revisions, immutable source/requirement/rule history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
 
 The business API is intentionally narrow. It demonstrates case workflow and auditability; it does not integrate with Immigration, make decisions, upload documents, or authenticate real users.
 
@@ -68,8 +68,9 @@ The API accepts an existing synthetic actor UUID in `X-Actor-Id`. This header is
 
 1. `POST /api/v1/applicant/cases` creates a `DRAFT` Student Pass case and profile. The actor must own `applicant_profile_id`.
 2. `POST /api/v1/applicant/cases/{case_id}/submit` records `submitted_at` and changes the case to `SUBMITTED`. It represents handover, not official acceptance or approval.
-3. `GET /api/v1/officer/cases?status=SUBMITTED` lists the officer queue.
-4. `POST /api/v1/officer/cases/{case_id}/start-processing` assigns the case to an officer and changes it to `IN_PROCESS`.
+3. `POST /api/v1/applicant/cases/{case_id}/documents` records one synthetic document's immutable metadata and first version for the case owner while the case is still `DRAFT`. It does not accept or store file bytes; `storage_reference` must use the `metadata-only://` demo scheme.
+4. `GET /api/v1/officer/cases?status=SUBMITTED` lists the officer queue.
+5. `POST /api/v1/officer/cases/{case_id}/start-processing` assigns the case to an officer and changes it to `IN_PROCESS`.
 
 Every transition creates a status-history row, a case event, and an audit event in the same transaction. `accepted_at` remains separate: it may only be populated later with official evidence, whereas `submitted_at` records the applicant’s completed handover.
 

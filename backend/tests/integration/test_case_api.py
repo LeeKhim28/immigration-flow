@@ -15,6 +15,8 @@ from app.database.models import (
     CaseEvent,
     CaseStatusHistory,
     CaseSubmission,
+    Document,
+    DocumentVersion,
     ImmigrationCase,
     Institution,
     Programme,
@@ -148,6 +150,115 @@ def test_applicant_creates_student_pass_draft(client: TestClient, session: Sessi
     assert body["status"] == "DRAFT"
     assert body["stage"] == "PRE_SUBMISSION"
     assert body["applicant_profile_id"] == str(profile.id)
+
+
+def test_applicant_records_document_metadata_for_owned_draft_case(
+    client: TestClient,
+    session: Session,
+) -> None:
+    applicant, profile, institution, programme = _seed_applicant_context(session, "DOCUMENT")
+    case_id = _create_draft(
+        client,
+        applicant,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-DOCUMENT",
+    )
+
+    response = client.post(
+        f"/api/v1/applicant/cases/{case_id}/documents",
+        headers={"X-Actor-Id": str(applicant.id)},
+        json={
+            "document_type": "PASSPORT_BIODATA",
+            "storage_reference": "metadata-only://case/passport-biodata-v1",
+            "content_hash": "a" * 64,
+            "mime_type": "application/pdf",
+            "size_bytes": 2048,
+            "captured_at": "2026-09-18T10:00:00Z",
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["case_id"] == str(case_id)
+    assert body["document_type"] == "PASSPORT_BIODATA"
+    assert body["version_number"] == 1
+    assert body["storage_reference"] == "metadata-only://case/passport-biodata-v1"
+    assert session.scalar(select(func.count()).select_from(Document)) == 1
+    assert session.scalar(select(func.count()).select_from(DocumentVersion)) == 1
+
+
+def test_applicant_cannot_record_document_metadata_for_another_case(
+    client: TestClient,
+    session: Session,
+) -> None:
+    owner, profile, institution, programme = _seed_applicant_context(session, "DOCUMENT-OWNER")
+    other, _other_profile, _other_institution, _other_programme = _seed_applicant_context(
+        session,
+        "DOCUMENT-OTHER",
+    )
+    case_id = _create_draft(
+        client,
+        owner,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-DOCUMENT-OWNER",
+    )
+
+    response = client.post(
+        f"/api/v1/applicant/cases/{case_id}/documents",
+        headers={"X-Actor-Id": str(other.id)},
+        json={
+            "document_type": "PASSPORT_BIODATA",
+            "storage_reference": "metadata-only://case/passport-biodata-v1",
+            "content_hash": "b" * 64,
+            "mime_type": "application/pdf",
+            "size_bytes": 2048,
+            "captured_at": "2026-09-18T10:00:00Z",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "actor does not own the case"}
+    assert session.scalar(select(func.count()).select_from(Document)) == 0
+
+
+def test_applicant_cannot_record_document_metadata_after_submission(
+    client: TestClient,
+    session: Session,
+) -> None:
+    applicant, profile, institution, programme = _seed_applicant_context(
+        session,
+        "DOCUMENT-SUBMITTED",
+    )
+    case_id = _create_draft(
+        client,
+        applicant,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-DOCUMENT-SUBMITTED",
+    )
+    _submit_draft(client, applicant, case_id)
+
+    response = client.post(
+        f"/api/v1/applicant/cases/{case_id}/documents",
+        headers={"X-Actor-Id": str(applicant.id)},
+        json={
+            "document_type": "PASSPORT_BIODATA",
+            "storage_reference": "metadata-only://case/passport-biodata-v1",
+            "content_hash": "c" * 64,
+            "mime_type": "application/pdf",
+            "size_bytes": 2048,
+            "captured_at": "2026-09-18T10:00:00Z",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "documents can only be recorded for a draft case"}
+    assert session.scalar(select(func.count()).select_from(Document)) == 0
 
 
 def test_applicant_submission_records_handover_and_moves_case_to_submitted(

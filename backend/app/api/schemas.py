@@ -8,6 +8,7 @@ from app.database.enums import (
     ApplicationType,
     CaseStage,
     CaseStatus,
+    DocumentType,
     InstitutionType,
     SubmissionChannel,
 )
@@ -46,3 +47,20 @@ class SubmissionResponse(BaseModel):
     status: CaseStatus
     submitted_at: datetime
     accepted_at: datetime | None
+
+
+class RecordDocumentMetadataRequest(BaseModel):
+    document_type: DocumentType
+    storage_reference: str = Field(min_length=1, pattern=r"^metadata-only://")
+    content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    mime_type: str = Field(min_length=1, max_length=255)
+    size_bytes: int = Field(ge=0)
+    captured_at: datetime
+
+
+class DocumentMetadataResponse(BaseModel):
+    id: UUID
+    case_id: UUID
+    document_type: DocumentType
+    version_number: int
+    storage_reference: str
