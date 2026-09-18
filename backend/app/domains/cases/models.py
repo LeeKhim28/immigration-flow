@@ -280,6 +280,54 @@ class CaseRequirement(Base):
     )
 
 
+class RuleEvaluation(Base):
+    __tablename__ = "rule_evaluation"
+    __table_args__ = (Index("ix_rule_evaluation_case_id", "case_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    case_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), ForeignKey("case.id", ondelete="RESTRICT"), nullable=False
+    )
+    rule_set_version_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("rule_set_version.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    trigger: Mapped[str] = mapped_column(Text, nullable=False)
+    input_snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    supersedes_evaluation_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), ForeignKey("rule_evaluation.id", ondelete="RESTRICT")
+    )
+    engine_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class EvaluationFinding(Base):
+    __tablename__ = "evaluation_finding"
+    __table_args__ = (Index("ix_evaluation_finding_evaluation_id", "rule_evaluation_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    rule_evaluation_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("rule_evaluation.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    rule_version_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("rule_version.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    details: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+
+
 class CaseEvent(Base):
     __tablename__ = "case_event"
     __table_args__ = (Index("ix_case_event_case_id_occurred_at", "case_id", "occurred_at"),)

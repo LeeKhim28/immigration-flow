@@ -5,7 +5,9 @@ from app.domains.cases.models import (
     CaseRequirement,
     CaseRuleAssignment,
     CaseStatusHistory,
+    EvaluationFinding,
     ImmigrationCase,
+    RuleEvaluation,
 )
 from app.domains.documents.models import Document, DocumentCheck, DocumentVersion
 from app.domains.identity.models import Actor, ApplicantProfile
@@ -41,6 +43,7 @@ __all__ = [
     "Document",
     "DocumentCheck",
     "DocumentVersion",
+    "EvaluationFinding",
     "ImmigrationCase",
     "Institution",
     "KnowledgeSource",
@@ -50,6 +53,7 @@ __all__ = [
     "RequirementSource",
     "RequirementVersion",
     "RuleDefinition",
+    "RuleEvaluation",
     "RuleRequirement",
     "RuleSet",
     "RuleSetVersion",

@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError
 
-EXPECTED_REVISION = "0008_case_rule_assignments_and_requirements"
+EXPECTED_REVISION = "0009_rule_evaluations_and_findings"
 
 
 class SeededRecords(NamedTuple):
