@@ -38,6 +38,7 @@ from app.database.models import (
     RuleVersion,
     StudentPassCaseProfile,
 )
+from app.domains.evaluations.service import evaluate_case
 
 
 class CaseWorkflowError(Exception):
@@ -187,6 +188,7 @@ def submit_case_to_immigration(
     )
     submission.applicable_rule_set_version_id = release.id
     case.current_rule_set_version_id = release.id
+    evaluate_case(session, case, release, trigger="INITIAL_SUBMISSION", at=occurred_at)
     session.add_all(
         [
             CaseEvent(

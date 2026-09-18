@@ -455,6 +455,21 @@ def test_applicant_submission_records_handover_and_moves_case_to_submitted(
         session.scalar(select(CaseRequirement.status).where(CaseRequirement.case_id == case_id))
         == "PENDING"
     )
+    from app.database.models import EvaluationFinding, RuleEvaluation
+
+    evaluation = session.scalar(select(RuleEvaluation).where(RuleEvaluation.case_id == case_id))
+    assert evaluation is not None
+    assert evaluation.rule_set_version_id == release.id
+    assert evaluation.outcome == "manual_review"
+    assert evaluation.input_snapshot["facts"]["application.service_region"] == "peninsular_malaysia"
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(EvaluationFinding)
+            .where(EvaluationFinding.rule_evaluation_id == evaluation.id)
+        )
+        == 1
+    )
 
 
 def test_submission_without_an_active_release_keeps_case_as_draft(
