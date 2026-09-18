@@ -30,17 +30,17 @@ Operational entities use normalized relational tables. `case_event`, `case_statu
 
 Official-source records, normalized requirements, and machine-readable rules continue to be reviewed in GitHub. PostgreSQL will later receive immutable synchronized versions. Every imported version retains its source Git commit so database state can be traced back to a reviewed repository change.
 
-### 2.4 Rule applicability is based on accepted submission
+### 2.4 Rule applicability is based on applicant handover
 
-An application is formally submitted only when all required forms and documents are handed to Immigration and Immigration issues an official receipt or reference. The timestamp is stored as `case_submission.accepted_at`.
+An application is formally submitted when all required forms and documents are handed to Immigration. The timestamp is stored as `case_submission.submitted_at`. A later official receipt/reference is represented independently by `accepted_at` and receipt evidence.
 
-- If `accepted_at` is before a policy's stated submission cutoff, the previous rule-set version applies.
-- If `accepted_at` is on or after the cutoff, the new rule-set version applies.
+- If `submitted_at` is before a policy's stated submission cutoff, the previous rule-set version applies.
+- If `submitted_at` is on or after the cutoff, the new rule-set version applies.
 - Later officer processing by itself does not change the selected rule-set version.
 - Supplementary documents do not change the original selection.
-- An attempted handover that Immigration rejects without issuing a receipt is not a formal submission.
+- A later receipt or acceptance event does not redefine the applicant's completed handover.
 
-The initial assignment is preserved in append-only history. When a newly activated official policy explicitly covers applications submitted on or after its cutoff, the system finds non-final cases whose `accepted_at` meets that condition, creates a superseding `case_rule_assignment`, and evaluates them using the new version. Cases submitted before the cutoff are not reassigned. Completed cases remain historical and are not automatically reopened.
+The initial assignment is preserved in append-only history. When a newly activated official policy explicitly covers applications submitted on or after its cutoff, the system finds non-final cases whose `submitted_at` meets that condition, creates a superseding `case_rule_assignment`, and evaluates them using the new version. Cases submitted before the cutoff are not reassigned. Completed cases remain historical and are not automatically reopened.
 
 If an official policy uses a different transition basis, it must be represented by a new explicit applicability policy rather than silently reusing this one.
 

@@ -1,6 +1,6 @@
 # ImmigrationFlow backend
 
-Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B adds a minimal synthetic Student Pass workflow: applicant draft creation, formal handover to Immigration, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, seven ordered Alembic revisions, immutable source/requirement/rule history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
+Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B/C adds a minimal synthetic Student Pass workflow: applicant draft creation, document-metadata capture, formal handover to Immigration, rule-set assignment, a materialized requirement checklist, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, eight ordered Alembic revisions, immutable source/requirement/rule history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
 
 The business API is intentionally narrow. It demonstrates case workflow and auditability; it does not integrate with Immigration, make decisions, upload documents, or authenticate real users.
 
@@ -68,10 +68,12 @@ The API accepts an existing synthetic actor UUID in `X-Actor-Id`. This header is
 
 1. `POST /api/v1/applicant/cases` creates a `DRAFT` Student Pass case and profile. The actor must own `applicant_profile_id`.
 2. `POST /api/v1/applicant/cases/{case_id}/submit` records `submitted_at` and changes the case to `SUBMITTED`. It represents handover, not official acceptance or approval.
-3. `GET /api/v1/officer/cases?status=SUBMITTED` lists the officer queue.
-4. `POST /api/v1/officer/cases/{case_id}/start-processing` assigns the case to an officer and changes it to `IN_PROCESS`.
+3. `POST /api/v1/applicant/cases/{case_id}/documents` records one synthetic document's immutable metadata and first version for the case owner while the case is still `DRAFT`. It does not accept or store file bytes; `storage_reference` must use the `metadata-only://` demo scheme.
+4. `GET /api/v1/officer/cases?status=SUBMITTED` lists the officer queue.
+5. `POST /api/v1/officer/cases/{case_id}/start-processing` assigns the case to an officer and changes it to `IN_PROCESS`.
+6. `GET /api/v1/applicant/cases/{case_id}/checklist` returns the owned case's assigned semantic rule-set version and materialized requirements.
 
-Every transition creates a status-history row, a case event, and an audit event in the same transaction. `accepted_at` remains separate: it may only be populated later with official evidence, whereas `submitted_at` records the applicant’s completed handover.
+At handover, the transaction selects the newest applicable `ACTIVE` Student Pass release by `submitted_at`, records an immutable rule assignment, and materializes its source-traceable requirements as `PENDING` checklist entries. A missing eligible release blocks the submission and leaves the case in `DRAFT`. Every transition creates a status-history row, a case event, and an audit event in the same transaction. `accepted_at` remains separate: it may only be populated later with official evidence, whereas `submitted_at` records the applicant’s completed handover.
 
 ## Database model and migrations
 
@@ -84,6 +86,7 @@ The migration chain is:
 5. `0005_knowledge_sources_and_requirements`
 6. `0006_rule_versions_and_activation`
 7. `0007_submission_handover_timestamp`
+8. `0008_case_rule_assignments_and_requirements`
 
 Together they create the platform, knowledge, and governance tables. The knowledge release path adds `knowledge_sync_run`, `knowledge_source`, `source_revision`, `requirement`, `requirement_version`, `requirement_source`, `rule_set`, `rule_set_version`, `rule_definition`, `rule_version`, `rule_requirement`, and `approval_event`.
 

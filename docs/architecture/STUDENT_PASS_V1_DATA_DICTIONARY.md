@@ -24,7 +24,7 @@
 
 | Entity | Purpose | Key fields | Important constraints |
 |---|---|---|---|
-| `case_submission` | A formal Immigration handover or later supplement | `id`, `case_id`, `submission_type`, `channel`, `submitted_by_actor_id`, `accepted_at`, `immigration_reference`, `receipt_document_version_id`, `applicable_rule_set_version_id`, `confirmed_at` | At most one confirmed `INITIAL` per case. `accepted_at` requires official receipt/reference evidence. Confirmed initial submissions are immutable. The version field preserves the initial determination; later approved transitions use `case_rule_assignment`. `SUPPLEMENTARY` does not change applicability. |
+| `case_submission` | A formal Immigration handover or later supplement | `id`, `case_id`, `submission_type`, `channel`, `submitted_by_actor_id`, `submitted_at`, `accepted_at`, `immigration_reference`, `receipt_document_version_id`, `applicable_rule_set_version_id`, `confirmed_at` | `submitted_at` is non-null and records the applicant’s completed handover. `accepted_at` requires official receipt/reference evidence and records a separate later acceptance. At most one confirmed `INITIAL` exists per case. Confirmed initial submissions are immutable. The version field preserves the initial determination; later approved transitions use `case_rule_assignment`. `SUPPLEMENTARY` does not change applicability. |
 | `document` | Logical document belonging to a case | `id`, `case_id`, `document_type`, `owner_actor_id`, `status`, timestamps | Contains no mutable file bytes; it groups versions. |
 | `document_version` | Immutable exact document content/metadata | `id`, `document_id`, `version_number`, `storage_reference`, `content_hash`, `mime_type`, `size_bytes`, `captured_at`, `created_by_actor_id` | Unique version number per document; content hash detects duplicates/tampering. Real sensitive files are out of scope for the portfolio. |
 | `submission_document` | Join between a submission and exact evidence version | `submission_id`, `document_version_id`, `purpose`, `included_at` | Composite uniqueness prevents the same version being attached twice for the same purpose. |
@@ -67,8 +67,8 @@
 
 ## Cross-entity invariants
 
-1. A confirmed initial submission requires `accepted_at`, `immigration_reference`, receipt evidence, and `applicable_rule_set_version_id`.
-2. Rule applicability uses the official accepted submission timestamp, not draft creation, applicant upload, supplementary delivery, or officer processing time.
+1. A formal handover records non-null `submitted_at`. A confirmed initial submission additionally requires `accepted_at`, `immigration_reference`, receipt evidence, and `applicable_rule_set_version_id`.
+2. Rule applicability uses `submitted_at`, not draft creation, applicant upload, later acceptance, supplementary delivery, or officer processing time.
 3. A non-final case submitted before the cutoff retains the previous rule set. A non-final case submitted at or after the cutoff receives the new version when the policy activates, including automatic re-evaluation if it was already in progress.
 4. Completed cases are historical and are not automatically reopened by a later activation.
 5. An initial submission and each rule assignment cannot be edited after confirmation; transitions create superseding append-only assignments.

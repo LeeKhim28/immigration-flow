@@ -1,5 +1,12 @@
 from app.database.base import Base
-from app.domains.cases.models import AuditEvent, CaseEvent, CaseStatusHistory, ImmigrationCase
+from app.domains.cases.models import (
+    AuditEvent,
+    CaseEvent,
+    CaseRequirement,
+    CaseRuleAssignment,
+    CaseStatusHistory,
+    ImmigrationCase,
+)
 from app.domains.documents.models import Document, DocumentCheck, DocumentVersion
 from app.domains.identity.models import Actor, ApplicantProfile
 from app.domains.institutions.models import Institution, Programme
@@ -27,6 +34,8 @@ __all__ = [
     "AuditEvent",
     "Base",
     "CaseEvent",
+    "CaseRequirement",
+    "CaseRuleAssignment",
     "CaseSubmission",
     "CaseStatusHistory",
     "Document",
