@@ -21,19 +21,6 @@ export function App() {
   );
 }
 
-export function HomePage() {
-  return (
-    <section className="hero" aria-labelledby="hero-title">
-      <p className="eyebrow">Student Pass V1</p>
-      <h1 id="hero-title">A traceable path through immigration case preparation</h1>
-      <p>
-        Explore how versioned official sources, deterministic rules, and auditable workflows can
-        support applicants and reviewers without pretending to make official decisions.
-      </p>
-    </section>
-  );
-}
-
 export function NotFoundPage() {
   return (
     <section className="message-panel">
