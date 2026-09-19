@@ -1,11 +1,35 @@
 from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database.enums import ApprovalDecision, KnowledgeSyncStatus, RuleSetVersionStatus
-from app.database.models import ApprovalEvent, AuditEvent, KnowledgeSyncRun, RuleSetVersion
+from app.database.enums import (
+    ApplicabilityBasis,
+    ApprovalDecision,
+    CaseStatus,
+    KnowledgeSyncStatus,
+    RuleSetVersionStatus,
+    SubmissionType,
+)
+from app.database.models import (
+    ApprovalEvent,
+    AuditEvent,
+    CaseEvent,
+    CaseRequirement,
+    CaseRuleAssignment,
+    CaseSubmission,
+    ImmigrationCase,
+    KnowledgeSyncRun,
+    RequirementVersion,
+    RuleEvaluation,
+    RuleRequirement,
+    RuleSet,
+    RuleSetVersion,
+    RuleVersion,
+)
+from app.domains.evaluations.service import evaluate_case
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +75,7 @@ class ActivationCoordinator:
                     )
                     if active is not None:
                         active.status = RuleSetVersionStatus.RETIRED
+                        session.flush()
                     release.status = RuleSetVersionStatus.ACTIVE
                     release.activated_at = now
                     session.add(
@@ -68,11 +93,160 @@ class ActivationCoordinator:
                         )
                     )
                     session.flush()
+                    _reassess_eligible_cases(session, release, now)
                 activated += 1
             except Exception:
                 failed += 1
         session.commit()
         return ActivationSummary(activated=activated, skipped=skipped, failed=failed)
+
+
+def _reassess_eligible_cases(session: Session, release: RuleSetVersion, now: datetime) -> None:
+    cutoff = release.submission_cutoff_at
+    if (
+        release.applicability_basis != ApplicabilityBasis.IMMIGRATION_SUBMISSION_DATE
+        or cutoff is None
+        or release.transition_policy.get("re_evaluate_after_effective") is not True
+    ):
+        return
+    rule_set = session.get(RuleSet, release.rule_set_id)
+    if rule_set is None:
+        raise ValueError("rule set is missing")
+    cases = list(
+        session.scalars(
+            select(ImmigrationCase)
+            .join(CaseSubmission, CaseSubmission.case_id == ImmigrationCase.id)
+            .where(
+                CaseSubmission.submission_type == SubmissionType.INITIAL,
+                CaseSubmission.submitted_at >= cutoff,
+                ImmigrationCase.service_type == rule_set.service_type,
+                ImmigrationCase.status.not_in(
+                    [CaseStatus.DRAFT, CaseStatus.COMPLETED, CaseStatus.WITHDRAWN]
+                ),
+                ImmigrationCase.current_rule_set_version_id != release.id,
+            )
+            .with_for_update(of=ImmigrationCase)
+        )
+    )
+    requirement_ids = list(
+        session.scalars(
+            select(RequirementVersion.id)
+            .join(RuleRequirement, RuleRequirement.requirement_version_id == RequirementVersion.id)
+            .join(RuleVersion, RuleVersion.id == RuleRequirement.rule_version_id)
+            .where(RuleVersion.rule_set_version_id == release.id)
+            .distinct()
+        )
+    )
+    if cases and not requirement_ids:
+        raise ValueError("approved release has no material requirements")
+    for case in cases:
+        case_id = case.id
+        try:
+            with session.begin_nested():
+                _reassess_case(session, case, release, requirement_ids, now)
+                session.flush()
+        except Exception:
+            session.add_all(
+                [
+                    CaseEvent(
+                        case_id=case_id,
+                        event_type="CASE_POLICY_REASSESSMENT_FAILED",
+                        event_payload={"rule_set_version_id": str(release.id)},
+                        occurred_at=now,
+                        actor_id=None,
+                    ),
+                    AuditEvent(
+                        case_id=case_id,
+                        actor_id=None,
+                        action="CASE_POLICY_REASSESSMENT_FAILED",
+                        entity_type="CASE",
+                        entity_id=case_id,
+                        after_summary={"rule_set_version_id": str(release.id)},
+                        occurred_at=now,
+                    ),
+                ]
+            )
+
+
+def _reassess_case(
+    session: Session,
+    case: ImmigrationCase,
+    release: RuleSetVersion,
+    requirement_ids: list[UUID],
+    now: datetime,
+) -> None:
+    previous_assignment = session.scalar(
+        select(CaseRuleAssignment)
+        .where(CaseRuleAssignment.case_id == case.id)
+        .order_by(CaseRuleAssignment.assigned_at.desc(), CaseRuleAssignment.id.desc())
+        .limit(1)
+    )
+    previous_evaluation = session.scalar(
+        select(RuleEvaluation)
+        .where(RuleEvaluation.case_id == case.id)
+        .order_by(RuleEvaluation.evaluated_at.desc(), RuleEvaluation.id.desc())
+        .limit(1)
+    )
+    assignment = CaseRuleAssignment(
+        case_id=case.id,
+        rule_set_version_id=release.id,
+        assignment_reason="POLICY_ACTIVATION_REASSESSMENT",
+        assigned_at=now,
+        assigned_by_actor_id=None,
+        supersedes_assignment_id=previous_assignment.id if previous_assignment else None,
+    )
+    session.add(assignment)
+    session.flush()
+    present_ids = set(
+        session.scalars(
+            select(CaseRequirement.requirement_version_id).where(CaseRequirement.case_id == case.id)
+        )
+    )
+    session.add_all(
+        CaseRequirement(case_id=case.id, requirement_version_id=version_id, status="PENDING")
+        for version_id in requirement_ids
+        if version_id not in present_ids
+    )
+    case.current_rule_set_version_id = release.id
+    evaluation = evaluate_case(
+        session,
+        case,
+        release,
+        trigger="POLICY_ACTIVATION_REASSESSMENT",
+        at=now,
+        supersedes_evaluation_id=previous_evaluation.id if previous_evaluation else None,
+    )
+    session.add_all(
+        [
+            CaseEvent(
+                case_id=case.id,
+                event_type="CASE_POLICY_REASSESSED",
+                event_payload={
+                    "rule_set_version_id": str(release.id),
+                    "evaluation_id": str(evaluation.id),
+                },
+                occurred_at=now,
+                actor_id=None,
+            ),
+            AuditEvent(
+                case_id=case.id,
+                actor_id=None,
+                action="CASE_POLICY_REASSESSED",
+                entity_type="CASE_RULE_ASSIGNMENT",
+                entity_id=assignment.id,
+                before_summary={
+                    "rule_set_version_id": str(previous_assignment.rule_set_version_id)
+                    if previous_assignment
+                    else None
+                },
+                after_summary={
+                    "rule_set_version_id": str(release.id),
+                    "evaluation_id": str(evaluation.id),
+                },
+                occurred_at=now,
+            ),
+        ]
+    )
 
 
 def display_release_status(
