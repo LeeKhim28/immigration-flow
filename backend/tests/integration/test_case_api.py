@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.database.enums import (
     ActorType,
     ApplicabilityBasis,
+    ApprovalDecision,
     KnowledgeSourceStatus,
     KnowledgeSyncStatus,
     RequirementSupportType,
@@ -19,6 +20,7 @@ from app.database.enums import (
 from app.database.models import (
     Actor,
     ApplicantProfile,
+    ApprovalEvent,
     AuditEvent,
     CaseEvent,
     CaseRequirement,
@@ -36,12 +38,14 @@ from app.database.models import (
     RequirementSource,
     RequirementVersion,
     RuleDefinition,
+    RuleEvaluation,
     RuleRequirement,
     RuleSet,
     RuleSetVersion,
     RuleVersion,
     SourceRevision,
 )
+from app.knowledge.activation import ActivationCoordinator
 
 
 @pytest.fixture
@@ -455,6 +459,21 @@ def test_applicant_submission_records_handover_and_moves_case_to_submitted(
         session.scalar(select(CaseRequirement.status).where(CaseRequirement.case_id == case_id))
         == "PENDING"
     )
+    from app.database.models import EvaluationFinding, RuleEvaluation
+
+    evaluation = session.scalar(select(RuleEvaluation).where(RuleEvaluation.case_id == case_id))
+    assert evaluation is not None
+    assert evaluation.rule_set_version_id == release.id
+    assert evaluation.outcome == "manual_review"
+    assert evaluation.input_snapshot["facts"]["application.service_region"] == "peninsular_malaysia"
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(EvaluationFinding)
+            .where(EvaluationFinding.rule_evaluation_id == evaluation.id)
+        )
+        == 1
+    )
 
 
 def test_submission_without_an_active_release_keeps_case_as_draft(
@@ -740,3 +759,152 @@ def test_officer_cannot_start_processing_twice(client: TestClient, session: Sess
 
     assert response.status_code == 409
     assert response.json() == {"detail": "case is not in the required state"}
+
+
+@pytest.mark.parametrize(
+    ("cutoff_offset", "final_status", "simulate_failure", "expected"),
+    [
+        (timedelta(days=-1), False, False, 2),
+        (timedelta(0), False, False, 2),
+        (timedelta(hours=1), False, False, 1),
+        (timedelta(days=-1), True, False, 1),
+        (timedelta(days=-1), False, True, 1),
+    ],
+)
+def test_activation_reassesses_only_eligible_cases(
+    client: TestClient,
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    cutoff_offset: timedelta,
+    final_status: bool,
+    simulate_failure: bool,
+    expected: int,
+) -> None:
+    suffix = f"ACT-{cutoff_offset.total_seconds()}-{final_status}-{simulate_failure}"
+    applicant, profile, institution, programme = _seed_applicant_context(session, suffix)
+    case_id = _create_draft(
+        client, applicant, profile, institution, programme, case_number=f"CASE-{suffix}"
+    )
+    _submit_draft(client, applicant, case_id)
+    submitted_at = session.scalar(
+        select(CaseSubmission.submitted_at).where(CaseSubmission.case_id == case_id)
+    )
+    assert submitted_at is not None
+    case = session.get(ImmigrationCase, case_id)
+    assert case is not None
+    if final_status:
+        case.status = "COMPLETED"
+        case.stage = "CLOSED"
+        session.commit()
+    original = session.scalar(
+        select(CaseRuleAssignment).where(CaseRuleAssignment.case_id == case_id)
+    )
+    original_evaluation = session.scalar(
+        select(RuleEvaluation).where(RuleEvaluation.case_id == case_id)
+    )
+    assert original is not None and original_evaluation is not None
+    old_release = session.get(RuleSetVersion, original.rule_set_version_id)
+    assert old_release is not None
+    current = datetime.now(UTC)
+    administrator = Actor(actor_type=ActorType.ADMINISTRATOR, display_name="Activation admin")
+    session.add(administrator)
+    session.flush()
+    next_release = RuleSetVersion(
+        rule_set_id=old_release.rule_set_id,
+        semantic_version="2.0.0",
+        scope_document=old_release.scope_document,
+        outcome_contract=old_release.outcome_contract,
+        default_outcome="pass",
+        dataset_snapshots={},
+        published_at=current,
+        effective_at=current + timedelta(days=1),
+        applicability_basis=ApplicabilityBasis.IMMIGRATION_SUBMISSION_DATE,
+        submission_cutoff_at=submitted_at + cutoff_offset,
+        transition_policy={"re_evaluate_after_effective": True},
+        status=RuleSetVersionStatus.REVIEW,
+        supersedes_rule_set_version_id=old_release.id,
+        knowledge_sync_run_id=old_release.knowledge_sync_run_id,
+        fingerprint="f" * 64,
+        git_commit_sha="a" * 40,
+    )
+    session.add(next_release)
+    session.flush()
+    session.add(
+        ApprovalEvent(
+            rule_set_version_id=next_release.id,
+            decision=ApprovalDecision.APPROVED,
+            decided_by_actor_id=administrator.id,
+            decided_at=current,
+            notes="Synthetic transition",
+        )
+    )
+    old_rule = session.scalar(
+        select(RuleVersion).where(RuleVersion.rule_set_version_id == old_release.id)
+    )
+    assert old_rule is not None
+    new_rule = RuleVersion(
+        rule_definition_id=old_rule.rule_definition_id,
+        rule_set_version_id=next_release.id,
+        description="New synthetic review",
+        priority=1,
+        condition_document={"always": True},
+        outcome="manual_review",
+        finding_code="NEW_REVIEW",
+        message="Review under new release.",
+        task_type="verify",
+        supplemental_source_codes=[],
+        fingerprint="f" * 64,
+        git_commit_sha="a" * 40,
+        knowledge_sync_run_id=old_release.knowledge_sync_run_id,
+    )
+    session.add(new_rule)
+    session.flush()
+    old_link = session.scalar(
+        select(RuleRequirement).where(RuleRequirement.rule_version_id == old_rule.id)
+    )
+    assert old_link is not None
+    session.add(
+        RuleRequirement(
+            rule_version_id=new_rule.id,
+            requirement_version_id=old_link.requirement_version_id,
+        )
+    )
+    session.commit()
+
+    if simulate_failure:
+
+        def _fail_case(*args: object, **kwargs: object) -> None:
+            raise ValueError("synthetic invalid case")
+
+        monkeypatch.setattr("app.knowledge.activation._reassess_case", _fail_case)
+
+    summary = ActivationCoordinator().activate_due(session, current + timedelta(days=2))
+
+    assert summary.activated == 1
+    assignments = list(
+        session.scalars(select(CaseRuleAssignment).where(CaseRuleAssignment.case_id == case_id))
+    )
+    evaluations = list(
+        session.scalars(select(RuleEvaluation).where(RuleEvaluation.case_id == case_id))
+    )
+    assert len(assignments) == expected
+    assert len(evaluations) == expected
+    session.refresh(case)
+    assert case.current_rule_set_version_id == (
+        next_release.id if expected == 2 else old_release.id
+    )
+    if expected == 2:
+        assert assignments[-1].supersedes_assignment_id == original.id
+        assert evaluations[-1].supersedes_evaluation_id == original_evaluation.id
+    if simulate_failure:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(
+                    AuditEvent.case_id == case_id,
+                    AuditEvent.action == "CASE_POLICY_REASSESSMENT_FAILED",
+                )
+            )
+            == 1
+        )

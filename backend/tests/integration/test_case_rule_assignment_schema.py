@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ from app.database.models import (
     ApplicantProfile,
     CaseRequirement,
     CaseRuleAssignment,
+    EvaluationFinding,
     ImmigrationCase,
     Institution,
     KnowledgeSource,
@@ -29,6 +30,7 @@ from app.database.models import (
     RequirementSource,
     RequirementVersion,
     RuleDefinition,
+    RuleEvaluation,
     RuleRequirement,
     RuleSet,
     RuleSetVersion,
@@ -238,10 +240,52 @@ def test_assignment_and_checklist_history_are_immutable(session: Session) -> Non
         )
         session.commit()
     session.rollback()
-
     with pytest.raises(DBAPIError, match="append-only"):
         session.execute(
             text("DELETE FROM case_requirement WHERE id = :id"),
             {"id": checklist.id},
+        )
+        session.commit()
+
+
+def test_evaluation_and_finding_history_are_immutable(session: Session) -> None:
+    assignment, _ = _seed_assignment(session)
+    rule = session.scalar(
+        select(RuleVersion).where(RuleVersion.rule_set_version_id == assignment.rule_set_version_id)
+    )
+    assert rule is not None
+    evaluation = RuleEvaluation(
+        case_id=assignment.case_id,
+        rule_set_version_id=assignment.rule_set_version_id,
+        trigger="INITIAL_SUBMISSION",
+        input_snapshot={"synthetic": True},
+        outcome="manual_review",
+        evaluated_at=NOW,
+        engine_version="v1",
+    )
+    session.add(evaluation)
+    session.flush()
+    finding = EvaluationFinding(
+        rule_evaluation_id=evaluation.id,
+        rule_version_id=rule.id,
+        outcome="manual_review",
+        code="SYNTHETIC",
+        message="Review synthetic evidence.",
+        details={"synthetic": True},
+    )
+    session.add(finding)
+    session.commit()
+
+    with pytest.raises(DBAPIError, match="append-only"):
+        session.execute(
+            text("UPDATE rule_evaluation SET outcome = 'pass' WHERE id = :id"),
+            {"id": evaluation.id},
+        )
+        session.commit()
+    session.rollback()
+    with pytest.raises(DBAPIError, match="append-only"):
+        session.execute(
+            text("DELETE FROM evaluation_finding WHERE id = :id"),
+            {"id": finding.id},
         )
         session.commit()
