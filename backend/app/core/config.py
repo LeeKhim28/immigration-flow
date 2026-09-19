@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     database_url: str = Field(min_length=1)
     test_database_url: str | None = None
     knowledge_activation_poll_seconds: int = 60
+    demo_mode: bool = False
 
 
 @lru_cache
