@@ -76,3 +76,54 @@ class ChecklistRequirementResponse(BaseModel):
 class CaseChecklistResponse(BaseModel):
     rule_set_version: str
     requirements: list[ChecklistRequirementResponse]
+
+
+class NamedReferenceResponse(BaseModel):
+    id: UUID
+    name: str
+    code: str
+
+
+class CaseDetailResponse(BaseModel):
+    id: UUID
+    case_number: str
+    applicant_profile_id: UUID
+    status: CaseStatus
+    stage: CaseStage
+    synthetic: bool
+    institution: NamedReferenceResponse
+    programme: NamedReferenceResponse
+    nationality_code: str
+    passport_expires_at: datetime
+    rule_set_version: str | None
+
+
+class TimelineEntryResponse(BaseModel):
+    id: UUID
+    event_type: str
+    occurred_at: datetime
+
+
+class CaseTimelineResponse(BaseModel):
+    events: list[TimelineEntryResponse]
+
+
+class EvaluationFindingResponse(BaseModel):
+    id: UUID
+    outcome: str
+    code: str
+    message: str
+
+
+class EvaluationResponse(BaseModel):
+    id: UUID
+    outcome: str
+    trigger: str
+    evaluated_at: datetime
+    supersedes_evaluation_id: UUID | None
+    rule_set_version: str
+    findings: list[EvaluationFindingResponse]
+
+
+class CaseEvaluationHistoryResponse(BaseModel):
+    evaluations: list[EvaluationResponse]

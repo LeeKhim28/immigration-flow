@@ -5,13 +5,21 @@ from fastapi import APIRouter, HTTPException, status
 from app.api.dependencies import CurrentActor, DatabaseSession
 from app.api.schemas import (
     CaseChecklistResponse,
+    CaseDetailResponse,
+    CaseEvaluationHistoryResponse,
     CaseResponse,
+    CaseTimelineResponse,
     ChecklistRequirementResponse,
     DocumentMetadataResponse,
     DraftStudentPassCaseRequest,
     RecordDocumentMetadataRequest,
     SubmissionResponse,
     SubmitCaseRequest,
+)
+from app.domains.cases.queries import (
+    get_applicant_case_detail,
+    get_applicant_timeline,
+    get_case_evaluations,
 )
 from app.domains.cases.service import (
     CaseWorkflowError,
@@ -23,6 +31,46 @@ from app.domains.cases.service import (
 from app.domains.documents.service import DocumentMetadataCommand, record_document_metadata
 
 router = APIRouter(prefix="/api/v1/applicant", tags=["applicant"])
+
+
+@router.get("/cases/{case_id}", response_model=CaseDetailResponse)
+def get_case_detail(
+    case_id: UUID,
+    session: DatabaseSession,
+    actor: CurrentActor,
+) -> CaseDetailResponse:
+    try:
+        return CaseDetailResponse.model_validate(
+            get_applicant_case_detail(session, actor, case_id), from_attributes=True
+        )
+    except CaseWorkflowError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+
+
+@router.get("/cases/{case_id}/timeline", response_model=CaseTimelineResponse)
+def get_timeline(
+    case_id: UUID,
+    session: DatabaseSession,
+    actor: CurrentActor,
+) -> CaseTimelineResponse:
+    try:
+        events = get_applicant_timeline(session, actor, case_id)
+    except CaseWorkflowError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return CaseTimelineResponse.model_validate({"events": events}, from_attributes=True)
+
+
+@router.get("/cases/{case_id}/evaluation", response_model=CaseEvaluationHistoryResponse)
+def get_evaluation_history(
+    case_id: UUID, session: DatabaseSession, actor: CurrentActor
+) -> CaseEvaluationHistoryResponse:
+    try:
+        evaluations = get_case_evaluations(session, actor, case_id)
+    except CaseWorkflowError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return CaseEvaluationHistoryResponse.model_validate(
+        {"evaluations": evaluations}, from_attributes=True
+    )
 
 
 @router.post("/cases", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
