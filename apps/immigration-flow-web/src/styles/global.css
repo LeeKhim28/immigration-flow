@@ -1,0 +1,20 @@
+* { box-sizing: border-box; }
+html { background: var(--sand-50); color: var(--ink); }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+a { color: var(--teal-700); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.skip-link { left: 1rem; position: fixed; top: -5rem; z-index: 10; }
+.skip-link:focus { background: var(--white); padding: 0.75rem; top: 1rem; }
+.app-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+.site-header { align-items: center; background: var(--navy-950); color: var(--white); display: flex; gap: 2rem; justify-content: space-between; padding: 1rem clamp(1rem, 4vw, 4rem); }
+.brand { align-items: center; color: var(--white); display: flex; font-weight: 750; gap: 0.7rem; text-decoration: none; }
+.brand-mark { background: var(--teal-100); border-radius: 0.65rem; color: var(--navy-950); display: grid; height: 2.5rem; place-items: center; width: 2.5rem; }
+.prototype-label { font-size: 0.85rem; margin: 0; opacity: 0.86; text-align: right; }
+main { padding: clamp(2rem, 7vw, 7rem) clamp(1rem, 8vw, 9rem); }
+.hero, .message-panel { background: var(--white); border: 1px solid var(--sand-200); border-radius: 1.5rem; box-shadow: var(--shadow); max-width: 62rem; padding: clamp(2rem, 5vw, 5rem); }
+.hero h1, .message-panel h1 { color: var(--navy-950); font-size: clamp(2.4rem, 6vw, 5rem); letter-spacing: -0.055em; line-height: 0.98; margin: 0.5rem 0 1.5rem; }
+.hero p:not(.eyebrow), .message-panel p { color: var(--muted); font-size: 1.12rem; line-height: 1.7; max-width: 44rem; }
+.eyebrow { color: var(--teal-700); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
+footer { background: var(--navy-950); color: var(--white); font-size: 0.82rem; padding: 1rem clamp(1rem, 4vw, 4rem); text-align: center; }
+@media (max-width: 640px) { .site-header { align-items: flex-start; flex-direction: column; gap: 0.75rem; } .prototype-label { text-align: left; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
