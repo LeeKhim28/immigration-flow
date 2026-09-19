@@ -1,6 +1,6 @@
 # ImmigrationFlow backend
 
-Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B/C adds a minimal synthetic Student Pass workflow: applicant draft creation, document-metadata capture, formal handover to Immigration, rule-set assignment, a materialized requirement checklist, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, eight ordered Alembic revisions, immutable source/requirement/rule history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
+Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B–D adds a synthetic Student Pass workflow: applicant draft creation, document-metadata capture, formal handover to Immigration, rule-set assignment, materialized requirement checklists, deterministic preparation evaluation, policy-cutoff reassessment, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, nine ordered Alembic revisions, immutable source/requirement/rule/evaluation history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
 
 The business API is intentionally narrow. It demonstrates case workflow and auditability; it does not integrate with Immigration, make decisions, upload documents, or authenticate real users.
 
