@@ -36,5 +36,34 @@ export const caseDetailSchema = z.object({
   rule_set_version: z.string().nullable(),
 });
 
+export const checklistSchema = z.object({
+  rule_set_version: z.string(),
+  requirements: z.array(z.object({
+    requirement_code: z.string(),
+    statement: z.string(),
+    machine_handling: z.string(),
+    status: z.string(),
+  })),
+});
+
+export const evaluationHistorySchema = z.object({
+  evaluations: z.array(z.object({
+    id: z.string().uuid(),
+    outcome: z.string(),
+    trigger: z.string(),
+    evaluated_at: z.iso.datetime(),
+    supersedes_evaluation_id: z.string().uuid().nullable(),
+    rule_set_version: z.string(),
+    findings: z.array(z.object({
+      id: z.string().uuid(), outcome: z.string(), code: z.string(), message: z.string(),
+    })),
+  })),
+});
+
+export const submissionSchema = z.object({
+  id: z.string().uuid(), case_id: z.string().uuid(), status: caseStatusSchema,
+  submitted_at: z.iso.datetime(), accepted_at: z.iso.datetime().nullable(),
+});
+
 export type DemoSession = z.infer<typeof demoSessionSchema>;
 export type CaseDetail = z.infer<typeof caseDetailSchema>;
