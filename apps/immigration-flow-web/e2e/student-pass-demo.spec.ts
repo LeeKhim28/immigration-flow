@@ -17,5 +17,5 @@ test("synthetic case moves from applicant handover to officer processing", async
   await page.getByRole("link", { name: /explore as officer/i }).click();
   await page.getByRole("link", { name: /IF-DEMO-STUDENT-PASS/i }).click();
   await page.getByRole("button", { name: /start processing/i }).click();
-  await expect(page.getByText(/processing started/i)).toBeVisible();
+  await expect(page.getByText("Processing started.", { exact: true })).toBeVisible();
 });
