@@ -24,7 +24,9 @@ mkdir -p "$RUNTIME_DIR"
 cd "$PROJECT_ROOT"
 docker compose up -d --wait postgres
 UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/immigration-flow-uv-cache}" uv sync --project backend --frozen --quiet
-npm --prefix apps/immigration-flow-web ci --silent
+if [[ ! -x "$PROJECT_ROOT/apps/immigration-flow-web/node_modules/.bin/vite" ]]; then
+  npm --prefix apps/immigration-flow-web ci --silent
+fi
 
 export DATABASE_URL DEMO_MODE=true KNOWLEDGE_ACTIVATION_POLL_SECONDS=0
 (
