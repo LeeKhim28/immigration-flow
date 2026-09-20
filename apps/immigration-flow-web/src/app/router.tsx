@@ -5,6 +5,8 @@ import { App, NotFoundPage } from "./App";
 import { LandingPage } from "../features/demo/LandingPage";
 import { ApplicantLayout } from "../features/applicant/ApplicantLayout";
 import { EvaluationRoute, HandoverRoute, OverviewRoute, RequirementsRoute } from "../features/applicant/ApplicantRoutes";
+import { OfficerLayout } from "../features/officer/OfficerLayout";
+import { CaseRoute, QueueRoute } from "../features/officer/OfficerRoutes";
 
 export const routes: RouteObject[] = [
   {
@@ -17,6 +19,10 @@ export const routes: RouteObject[] = [
         { path: "requirements", element: <RequirementsRoute /> },
         { path: "evaluation", element: <EvaluationRoute /> },
         { path: "handover", element: <HandoverRoute /> },
+      ] },
+      { path: "officer/cases", element: <OfficerLayout />, children: [
+        { index: true, element: <QueueRoute /> },
+        { path: ":caseId", element: <CaseRoute /> },
       ] },
       { path: "*", element: <NotFoundPage /> },
     ],

@@ -3,9 +3,18 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 
 from app.api.dependencies import CurrentActor, DatabaseSession
-from app.api.schemas import CaseDetailResponse, CaseEvaluationHistoryResponse, CaseResponse
+from app.api.schemas import (
+    CaseDetailResponse,
+    CaseEvaluationHistoryResponse,
+    CaseResponse,
+    CaseTimelineResponse,
+)
 from app.database.enums import CaseStatus
-from app.domains.cases.queries import get_case_evaluations, get_officer_case_detail
+from app.domains.cases.queries import (
+    get_case_evaluations,
+    get_officer_case_detail,
+    get_officer_timeline,
+)
 from app.domains.cases.service import (
     CaseWorkflowError,
     list_officer_cases,
@@ -29,9 +38,17 @@ def get_case_detail(
             {"evaluations": get_case_evaluations(session, actor, case_id, officer=True)},
             from_attributes=True,
         )
+        timeline = CaseTimelineResponse.model_validate(
+            {"events": get_officer_timeline(session, actor, case_id)},
+            from_attributes=True,
+        )
     except CaseWorkflowError as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
-    return {**detail.model_dump(mode="json"), **evaluations.model_dump(mode="json")}
+    return {
+        **detail.model_dump(mode="json"),
+        **evaluations.model_dump(mode="json"),
+        **timeline.model_dump(mode="json"),
+    }
 
 
 @router.get("/cases", response_model=list[CaseResponse])

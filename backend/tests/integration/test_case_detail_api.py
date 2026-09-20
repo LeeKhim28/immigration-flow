@@ -109,4 +109,7 @@ def test_officer_can_read_case_detail_but_applicant_cannot_use_officer_route(
     assert officer_response.status_code == 200
     assert officer_response.json()["case_number"] == demo["case_number"]
     assert officer_response.json()["evaluations"] == []
+    assert [item["event_type"] for item in officer_response.json()["events"]] == [
+        "CASE_CREATED"
+    ]
     assert applicant_response.status_code == 403

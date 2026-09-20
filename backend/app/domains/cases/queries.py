@@ -108,6 +108,22 @@ def get_applicant_timeline(
     )
 
 
+def get_officer_timeline(
+    session: Session,
+    actor: Actor,
+    case_id: UUID,
+) -> tuple[TimelineEntry, ...]:
+    get_officer_case_detail(session, actor, case_id)
+    return tuple(
+        TimelineEntry(event.id, event.event_type, event.occurred_at)
+        for event in session.scalars(
+            select(CaseEvent)
+            .where(CaseEvent.case_id == case_id)
+            .order_by(CaseEvent.occurred_at, CaseEvent.id)
+        )
+    )
+
+
 def get_case_evaluations(
     session: Session,
     actor: Actor,
