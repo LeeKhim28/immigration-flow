@@ -42,6 +42,7 @@ tmp/
 .cache/
 .superpowers/
 .worktrees/
+.demo-runtime/
 
 # Personal or sensitive case material
 data/private/
