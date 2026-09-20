@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test";
 
 test("synthetic case moves from applicant handover to officer processing", async ({ page }) => {
   await page.goto("/");
+  const caseNumber = await page
+    .locator("strong")
+    .filter({ hasText: /IF-DEMO-STUDENT-PASS/i })
+    .innerText();
   await page.getByRole("link", { name: /explore as applicant/i }).click();
   await page.getByRole("link", { name: /requirements/i }).click();
   await expect(
@@ -15,7 +19,7 @@ test("synthetic case moves from applicant handover to officer processing", async
 
   await page.getByRole("link", { name: /switch workspace/i }).click();
   await page.getByRole("link", { name: /explore as officer/i }).click();
-  await page.getByRole("link", { name: /IF-DEMO-STUDENT-PASS/i }).click();
+  await page.getByRole("link", { name: caseNumber, exact: true }).click();
   await page.getByRole("button", { name: /start processing/i }).click();
   await expect(page.getByText("Processing started.", { exact: true })).toBeVisible();
 });
