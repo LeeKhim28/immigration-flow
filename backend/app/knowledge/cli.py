@@ -186,8 +186,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
 def _prepare_demo(root: Path, git_sha: str) -> int:
     from app.core.config import get_settings
-    from app.database.enums import ApprovalDecision, RuleSetVersionStatus
-    from app.database.models import ApprovalEvent, RuleSetVersion
+    from app.database.enums import ApprovalDecision, RuleSetVersionStatus, ServiceType
+    from app.database.models import ApprovalEvent, RuleSet, RuleSetVersion
     from app.database.session import get_db_session
 
     if not get_settings().demo_mode:
@@ -200,6 +200,17 @@ def _prepare_demo(root: Path, git_sha: str) -> int:
         release = session.scalar(
             select(RuleSetVersion).where(RuleSetVersion.knowledge_sync_run_id == result.run_id)
         )
+        if release is None:
+            release = session.scalar(
+                select(RuleSetVersion)
+                .join(RuleSet, RuleSet.id == RuleSetVersion.rule_set_id)
+                .where(
+                    RuleSet.service_type == ServiceType.STUDENT_PASS,
+                    RuleSetVersion.status == RuleSetVersionStatus.ACTIVE,
+                )
+                .order_by(RuleSetVersion.activated_at.desc(), RuleSetVersion.id.desc())
+                .limit(1)
+            )
         if release is None:
             raise RuntimeError("synchronized demo release was not found")
         if release.status == RuleSetVersionStatus.DRAFT:
