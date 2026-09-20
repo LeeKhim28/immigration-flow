@@ -4,7 +4,9 @@ test("synthetic case moves from applicant handover to officer processing", async
   await page.goto("/");
   await page.getByRole("link", { name: /explore as applicant/i }).click();
   await page.getByRole("link", { name: /requirements/i }).click();
-  await expect(page.getByRole("heading", { name: /official requirements/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /requirements and document readiness/i }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: /handover/i }).click();
   await page.getByRole("button", { name: /submit to immigration/i }).click();
