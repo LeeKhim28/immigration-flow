@@ -1,5 +1,7 @@
 .PHONY: demo demo-stop test
 
+TEST_POSTGRES_PORT ?= 55433
+
 demo:
 	./scripts/run_demo.sh
 
@@ -7,8 +9,8 @@ demo-stop:
 	./scripts/stop_demo.sh
 
 test:
-	docker compose --profile test up -d --wait postgres-test
-	cd backend && TEST_DATABASE_URL=postgresql+psycopg://immigration_flow:immigration_flow_test@localhost:5433/immigration_flow_test DATABASE_URL=postgresql+psycopg://immigration_flow:immigration_flow_test@localhost:5433/immigration_flow_test uv run pytest -q
+	TEST_POSTGRES_PORT=$(TEST_POSTGRES_PORT) docker compose --profile test up -d --wait postgres-test
+	cd backend && TEST_DATABASE_URL=postgresql+psycopg://immigration_flow:immigration_flow_test@localhost:$(TEST_POSTGRES_PORT)/immigration_flow_test DATABASE_URL=postgresql+psycopg://immigration_flow:immigration_flow_test@localhost:$(TEST_POSTGRES_PORT)/immigration_flow_test uv run pytest -q
 	cd backend && uv run ruff check app tests
 	cd backend && uv run mypy app
 	ruby scripts/validate_knowledge_base.rb
