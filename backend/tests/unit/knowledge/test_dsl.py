@@ -37,6 +37,13 @@ def test_rule_condition_accepts_nested_allowlisted_logic() -> None:
     assert validate_rule_condition(condition)["all"][0]["operator"] == "eq"
 
 
+def test_rule_condition_accepts_unary_presence_operator_without_value() -> None:
+    assert validate_rule_condition({"fact": "passport.number", "operator": "absent"}) == {
+        "fact": "passport.number",
+        "operator": "absent",
+    }
+
+
 @pytest.mark.parametrize(
     "condition",
     [

@@ -10,6 +10,7 @@ from app.domains.evaluations.service import condition_matches
         ({"fact": "x", "operator": "in", "value": [2, 3]}, True),
         ({"fact": "x", "operator": "present", "value": None}, True),
         ({"fact": "missing", "operator": "absent", "value": None}, True),
+        ({"fact": "missing", "operator": "absent"}, True),
         ({"fact": "missing", "operator": "neq", "value": True}, True),
         ({"all": [{"fact": "x", "operator": "eq", "value": 3}]}, True),
         ({"any": [{"fact": "x", "operator": "eq", "value": 4}]}, False),
