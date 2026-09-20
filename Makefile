@@ -15,6 +15,7 @@ test:
 	cd backend && uv run ruff check app tests
 	cd backend && uv run mypy app
 	ruby scripts/validate_knowledge_base.rb
+	npm --prefix apps/immigration-flow-web ci
 	npm --prefix apps/immigration-flow-web run lint
 	npm --prefix apps/immigration-flow-web run typecheck
 	npm --prefix apps/immigration-flow-web test -- --run
