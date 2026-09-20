@@ -32,7 +32,10 @@ export DATABASE_URL DEMO_MODE=true KNOWLEDGE_ACTIVATION_POLL_SECONDS=0
   uv run alembic upgrade head
 )
 GIT_SHA="$(git rev-parse HEAD)"
-uv run --project backend python -m app.knowledge.cli prepare-demo --root "$PROJECT_ROOT" --git-sha "$GIT_SHA"
+(
+  cd backend
+  uv run python -m app.knowledge.cli prepare-demo --root "$PROJECT_ROOT" --git-sha "$GIT_SHA"
+)
 
 (
   cd backend
