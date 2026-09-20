@@ -283,22 +283,32 @@ def get_case_checklist(
 ) -> CaseChecklist:
     _require_actor_type(actor, ActorType.APPLICANT)
     case = _require_owned_case(session, case_id, actor)
+    requirements: list[CaseChecklistItem] = []
     if case.current_rule_set_version_id is None:
-        raise CaseWorkflowError(409, "case has no assigned rule set")
-    release = _require_record(
-        session.get(RuleSetVersion, case.current_rule_set_version_id),
-        "rule set version",
-    )
-    requirements = []
-    for case_requirement in session.scalars(
-        select(CaseRequirement)
-        .where(CaseRequirement.case_id == case.id)
-        .order_by(CaseRequirement.created_at, CaseRequirement.id)
-    ):
-        version = _require_record(
-            session.get(RequirementVersion, case_requirement.requirement_version_id),
-            "requirement version",
+        release = _resolve_applicable_release(session, case, datetime.now(UTC))
+        versions = _requirement_versions_for_release(session, release.id)
+        statuses = {version.id: "PENDING" for version in versions}
+    else:
+        release = _require_record(
+            session.get(RuleSetVersion, case.current_rule_set_version_id),
+            "rule set version",
         )
+        materialized = list(
+            session.scalars(
+                select(CaseRequirement)
+                .where(CaseRequirement.case_id == case.id)
+                .order_by(CaseRequirement.created_at, CaseRequirement.id)
+            )
+        )
+        versions = [
+            _require_record(
+                session.get(RequirementVersion, item.requirement_version_id),
+                "requirement version",
+            )
+            for item in materialized
+        ]
+        statuses = {item.requirement_version_id: item.status for item in materialized}
+    for version in versions:
         requirement = _require_record(
             session.get(Requirement, version.requirement_id),
             "requirement",
@@ -308,10 +318,25 @@ def get_case_checklist(
                 requirement_code=requirement.requirement_code,
                 statement=version.statement,
                 machine_handling=version.machine_handling,
-                status=case_requirement.status,
+                status=statuses[version.id],
             )
         )
     return CaseChecklist(rule_set_version=release.semantic_version, requirements=requirements)
+
+
+def _requirement_versions_for_release(
+    session: Session, release_id: UUID
+) -> list[RequirementVersion]:
+    return list(
+        session.scalars(
+            select(RequirementVersion)
+            .join(RuleRequirement, RuleRequirement.requirement_version_id == RequirementVersion.id)
+            .join(RuleVersion, RuleVersion.id == RuleRequirement.rule_version_id)
+            .where(RuleVersion.rule_set_version_id == release_id)
+            .distinct()
+            .order_by(RequirementVersion.id)
+        )
+    )
 
 
 def start_case_processing(

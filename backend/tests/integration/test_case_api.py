@@ -558,6 +558,38 @@ def test_case_owner_reads_materialized_requirement_checklist(
     }
 
 
+def test_draft_checklist_previews_current_rules_without_assigning_them(
+    client: TestClient,
+    session: Session,
+) -> None:
+    applicant, profile, institution, programme = _seed_applicant_context(session, "PREVIEW")
+    case_id = _create_draft(
+        client,
+        applicant,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-PREVIEW",
+    )
+
+    response = client.get(
+        f"/api/v1/applicant/cases/{case_id}/checklist",
+        headers={"X-Actor-Id": str(applicant.id)},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["rule_set_version"] == "1.0.0"
+    assert response.json()["requirements"][0]["status"] == "PENDING"
+    session.expire_all()
+    case = session.get(ImmigrationCase, case_id)
+    assert case is not None and case.current_rule_set_version_id is None
+    assert session.scalar(
+        select(func.count()).select_from(CaseRuleAssignment).where(
+            CaseRuleAssignment.case_id == case_id
+        )
+    ) == 0
+
+
 def test_other_applicant_cannot_read_case_requirement_checklist(
     client: TestClient,
     session: Session,
