@@ -11,8 +11,12 @@ from tempfile import NamedTemporaryFile
 
 import httpx
 import yaml
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
+from app.database.enums import ActorType
+from app.database.models import Actor
 from app.knowledge.activation import ActivationCoordinator
 from app.knowledge.contracts import (
     MonitorBaseline,
@@ -83,6 +87,13 @@ def build_parser() -> argparse.ArgumentParser:
         "activate-due", help="Activate approved releases whose effective time has arrived."
     )
     activate.add_argument("--at")
+
+    demo = subparsers.add_parser(
+        "prepare-demo",
+        help="Synchronize and activate the reviewed bundle for a protected local demo.",
+    )
+    demo.add_argument("--root", type=Path, required=True)
+    demo.add_argument("--git-sha", required=True)
     return parser
 
 
@@ -141,6 +152,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 session.close()
             print("decision recorded")
             return 0
+        if parsed.command == "prepare-demo":
+            return _prepare_demo(parsed.root, parsed.git_sha)
         from app.database.session import get_db_session
 
         session = next(get_db_session())
@@ -169,6 +182,94 @@ def main(arguments: Sequence[str] | None = None) -> int:
     except SQLAlchemyError:
         print("error: database operation failed", file=sys.stderr)
         return 3
+
+
+def _prepare_demo(root: Path, git_sha: str) -> int:
+    from app.core.config import get_settings
+    from app.database.enums import ApprovalDecision, RuleSetVersionStatus, ServiceType
+    from app.database.models import ApprovalEvent, RuleSet, RuleSetVersion
+    from app.database.session import get_db_session
+
+    if not get_settings().demo_mode:
+        raise ValueError("prepare-demo requires DEMO_MODE=true")
+
+    result = KnowledgeSynchronizer().sync(root, git_sha)
+    now = datetime.now(UTC)
+    session = next(get_db_session())
+    try:
+        release = session.scalar(
+            select(RuleSetVersion).where(RuleSetVersion.knowledge_sync_run_id == result.run_id)
+        )
+        if release is None:
+            release = session.scalar(
+                select(RuleSetVersion)
+                .join(RuleSet, RuleSet.id == RuleSetVersion.rule_set_id)
+                .where(
+                    RuleSet.service_type == ServiceType.STUDENT_PASS,
+                    RuleSetVersion.status == RuleSetVersionStatus.ACTIVE,
+                )
+                .order_by(RuleSetVersion.activated_at.desc(), RuleSetVersion.id.desc())
+                .limit(1)
+            )
+        if release is None:
+            raise RuntimeError("synchronized demo release was not found")
+        if release.status == RuleSetVersionStatus.DRAFT:
+            reviewer = _demo_actor(
+                session,
+                ActorType.SYSTEM,
+                "IMMIGRATIONFLOW-DEMO-V1:KNOWLEDGE-REVIEWER",
+                "Demo Knowledge Reviewer (Synthetic)",
+            )
+            administrator = _demo_actor(
+                session,
+                ActorType.ADMINISTRATOR,
+                "IMMIGRATIONFLOW-DEMO-V1:ADMINISTRATOR",
+                "Demo Rule Administrator (Synthetic)",
+            )
+            submit_for_review(session, release.id, reviewer.id, now)
+            decide_release(
+                session,
+                release.id,
+                administrator.id,
+                ApprovalDecision.APPROVED,
+                "Synthetic local demo activation of the reviewed repository bundle.",
+                now,
+            )
+            session.commit()
+        elif release.status == RuleSetVersionStatus.REVIEW:
+            approval = session.scalar(
+                select(ApprovalEvent).where(ApprovalEvent.rule_set_version_id == release.id)
+            )
+            if approval is None or approval.decision != ApprovalDecision.APPROVED:
+                raise ValueError("demo release is in review without an approval")
+        summary = ActivationCoordinator().activate_due(session, now)
+        session.refresh(release)
+        if release.status != RuleSetVersionStatus.ACTIVE:
+            raise RuntimeError("demo rule release did not become active")
+    finally:
+        session.close()
+    print(json.dumps({"status": "ready", "activated": summary.activated}))
+    return 0
+
+
+def _demo_actor(
+    session: Session,
+    actor_type: ActorType,
+    external_reference: str,
+    display_name: str,
+) -> Actor:
+    actor = session.scalar(
+        select(Actor).where(Actor.external_reference == external_reference)
+    )
+    if actor is None:
+        actor = Actor(
+            actor_type=actor_type,
+            display_name=display_name,
+            external_reference=external_reference,
+        )
+        session.add(actor)
+        session.flush()
+    return actor
 
 
 def _monitor(arguments: argparse.Namespace) -> int:

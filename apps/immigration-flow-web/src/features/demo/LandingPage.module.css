@@ -1,0 +1,15 @@
+.layout { display: grid; gap: 2rem; }
+.hero { background: linear-gradient(135deg, var(--navy-950), var(--navy-800)); border-radius: 1.75rem; color: var(--white); padding: clamp(2.5rem, 7vw, 6rem); }
+.hero h1 { font-size: clamp(2.7rem, 7vw, 6.2rem); letter-spacing: -0.06em; line-height: 0.92; margin: 0.8rem 0 1.5rem; max-width: 13ch; }
+.hero p:last-child { font-size: 1.1rem; line-height: 1.7; max-width: 46rem; }
+.roles { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.roles article, .resetPanel { background: var(--white); border: 1px solid var(--sand-200); border-radius: 1.25rem; padding: 2rem; }
+.roles h2 { color: var(--navy-950); font-size: 1.8rem; margin: 0.4rem 0; }
+.roles a { display: inline-block; font-weight: 750; margin-top: 1rem; }
+.resetPanel { align-items: center; display: flex; justify-content: space-between; }
+.resetPanel p { color: var(--muted); margin-bottom: 0; }
+button { background: var(--teal-700); border: 0; border-radius: 0.65rem; color: var(--white); cursor: pointer; font: inherit; font-weight: 700; padding: 0.75rem 1rem; }
+button:disabled { cursor: wait; opacity: 0.65; }
+.dialog { background: var(--white); border: 2px solid var(--navy-950); border-radius: 1rem; box-shadow: var(--shadow); inset: 20% auto auto 50%; max-width: 28rem; padding: 2rem; position: fixed; transform: translateX(-50%); width: calc(100% - 2rem); z-index: 20; }
+.dialog div { display: flex; gap: 0.75rem; }
+@media (max-width: 700px) { .roles { grid-template-columns: 1fr; } .resetPanel { align-items: flex-start; flex-direction: column; gap: 1rem; } }

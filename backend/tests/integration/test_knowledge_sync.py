@@ -1,11 +1,13 @@
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, func, select, text
 from sqlalchemy.orm import Session
 
 from app.database.enums import KnowledgeSyncStatus
+from app.database.models import RuleSetVersion, SourceRevision
 from app.knowledge.repository import KnowledgeBundle
 from app.knowledge.sync import KnowledgeSynchronizer
 
@@ -123,3 +125,30 @@ def test_sync_imports_once_and_reuses_successful_commit(
     assert first.status is KnowledgeSyncStatus.SUCCEEDED
     assert first.source_count == 1
     assert second.reused is True
+    release = clean_sync_database.scalar(select(RuleSetVersion))
+    assert release is not None
+    assert release.submission_cutoff_at == datetime(2026, 9, 18, tzinfo=UTC)
+
+
+def test_sync_reuses_identical_source_revision_across_code_only_commits(
+    monkeypatch: pytest.MonkeyPatch,
+    clean_sync_database: Session,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".git").write_text("synthetic", encoding="utf-8")
+    current_sha = "a" * 40
+    monkeypatch.setattr(
+        "app.knowledge.sync.load_knowledge_bundle", lambda *_: _bundle(current_sha)
+    )
+
+    def factory() -> Session:
+        return Session(clean_sync_database.bind)  # type: ignore[arg-type]
+
+    KnowledgeSynchronizer(factory).sync(tmp_path, current_sha)
+    current_sha = "b" * 40
+    second = KnowledgeSynchronizer(factory).sync(tmp_path, current_sha)
+
+    assert second.status is KnowledgeSyncStatus.SUCCEEDED
+    assert clean_sync_database.scalar(
+        select(func.count()).select_from(SourceRevision)
+    ) == 1

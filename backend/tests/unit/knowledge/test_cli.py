@@ -85,3 +85,17 @@ def test_monitor_dry_run_writes_sanitized_state_without_github_token(
         }
     }
     assert "upsert:MY-TEST-SOURCE:CHANGED" in capsys.readouterr().out
+
+
+def test_prepare_demo_is_rejected_when_demo_mode_is_disabled(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    settings = type("SettingsStub", (), {"demo_mode": False})()
+    monkeypatch.setattr("app.core.config.get_settings", lambda: settings)
+
+    exit_code = main(
+        ["prepare-demo", "--root", str(tmp_path), "--git-sha", "a" * 40]
+    )
+
+    assert exit_code == 2
+    assert "prepare-demo requires DEMO_MODE=true" in capsys.readouterr().err

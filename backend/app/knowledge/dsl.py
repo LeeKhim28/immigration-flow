@@ -42,13 +42,19 @@ def _validate_rule_node(value: object, *, depth: int, max_depth: int) -> None:
         for child in children:
             _validate_rule_node(child, depth=depth + 1, max_depth=max_depth)
         return
-    if keys != {"fact", "operator", "value"}:
+    if keys not in ({"fact", "operator"}, {"fact", "operator", "value"}):
         raise ValueError("rule condition has unknown or missing keys")
     fact, operator = value["fact"], value["operator"]
     if not isinstance(fact, str) or not fact:
         raise ValueError("rule condition fact must be non-empty text")
     if operator not in RULE_OPERATORS:
         raise ValueError("unsupported rule condition operator")
+    if operator in {"present", "absent"}:
+        if "value" in value and value["value"] is not None:
+            raise ValueError("presence operators do not accept a non-null value")
+        return
+    if "value" not in value:
+        raise ValueError("binary rule condition requires a value")
     _require_json(value["value"])
 
 

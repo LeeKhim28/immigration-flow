@@ -29,13 +29,16 @@ from app.database.models import (
     CaseSubmission,
     ImmigrationCase,
     Institution,
+    KnowledgeSource,
     Programme,
     Requirement,
+    RequirementSource,
     RequirementVersion,
     RuleRequirement,
     RuleSet,
     RuleSetVersion,
     RuleVersion,
+    SourceRevision,
     StudentPassCaseProfile,
 )
 from app.domains.evaluations.service import evaluate_case
@@ -63,11 +66,20 @@ class DraftStudentPassCaseCommand:
 
 
 @dataclass(frozen=True)
+class RequirementSourceProjection:
+    title: str
+    canonical_url: str
+    locator: str
+    reviewed_at: datetime | None
+
+
+@dataclass(frozen=True)
 class CaseChecklistItem:
     requirement_code: str
     statement: str
     machine_handling: str
     status: str
+    sources: tuple[RequirementSourceProjection, ...]
 
 
 @dataclass(frozen=True)
@@ -283,22 +295,32 @@ def get_case_checklist(
 ) -> CaseChecklist:
     _require_actor_type(actor, ActorType.APPLICANT)
     case = _require_owned_case(session, case_id, actor)
+    requirements: list[CaseChecklistItem] = []
     if case.current_rule_set_version_id is None:
-        raise CaseWorkflowError(409, "case has no assigned rule set")
-    release = _require_record(
-        session.get(RuleSetVersion, case.current_rule_set_version_id),
-        "rule set version",
-    )
-    requirements = []
-    for case_requirement in session.scalars(
-        select(CaseRequirement)
-        .where(CaseRequirement.case_id == case.id)
-        .order_by(CaseRequirement.created_at, CaseRequirement.id)
-    ):
-        version = _require_record(
-            session.get(RequirementVersion, case_requirement.requirement_version_id),
-            "requirement version",
+        release = _resolve_applicable_release(session, case, datetime.now(UTC))
+        versions = _requirement_versions_for_release(session, release.id)
+        statuses = {version.id: "PENDING" for version in versions}
+    else:
+        release = _require_record(
+            session.get(RuleSetVersion, case.current_rule_set_version_id),
+            "rule set version",
         )
+        materialized = list(
+            session.scalars(
+                select(CaseRequirement)
+                .where(CaseRequirement.case_id == case.id)
+                .order_by(CaseRequirement.created_at, CaseRequirement.id)
+            )
+        )
+        versions = [
+            _require_record(
+                session.get(RequirementVersion, item.requirement_version_id),
+                "requirement version",
+            )
+            for item in materialized
+        ]
+        statuses = {item.requirement_version_id: item.status for item in materialized}
+    for version in versions:
         requirement = _require_record(
             session.get(Requirement, version.requirement_id),
             "requirement",
@@ -308,10 +330,99 @@ def get_case_checklist(
                 requirement_code=requirement.requirement_code,
                 statement=version.statement,
                 machine_handling=version.machine_handling,
-                status=case_requirement.status,
+                status=statuses[version.id],
+                sources=_requirement_sources(session, version.id),
             )
         )
     return CaseChecklist(rule_set_version=release.semantic_version, requirements=requirements)
+
+
+def get_officer_case_checklist(
+    session: Session, officer: Actor, case_id: UUID
+) -> CaseChecklist | None:
+    _require_actor_type(officer, ActorType.OFFICER)
+    case = _require_record(session.get(ImmigrationCase, case_id), "case")
+    if case.current_rule_set_version_id is None:
+        return None
+    return _build_materialized_checklist(session, case)
+
+
+def _build_materialized_checklist(session: Session, case: ImmigrationCase) -> CaseChecklist:
+    release = _require_record(
+        session.get(RuleSetVersion, case.current_rule_set_version_id), "rule set version"
+    )
+    materialized = list(
+        session.scalars(
+            select(CaseRequirement)
+            .where(CaseRequirement.case_id == case.id)
+            .order_by(CaseRequirement.created_at, CaseRequirement.id)
+        )
+    )
+    versions = [
+        _require_record(
+            session.get(RequirementVersion, item.requirement_version_id),
+            "requirement version",
+        )
+        for item in materialized
+    ]
+    statuses = {item.requirement_version_id: item.status for item in materialized}
+    requirements = []
+    for version in versions:
+        requirement = _require_record(
+            session.get(Requirement, version.requirement_id), "requirement"
+        )
+        requirements.append(
+            CaseChecklistItem(
+                requirement.requirement_code,
+                version.statement,
+                version.machine_handling,
+                statuses[version.id],
+                _requirement_sources(session, version.id),
+            )
+        )
+    return CaseChecklist(release.semantic_version, requirements)
+
+
+def _requirement_sources(
+    session: Session, requirement_version_id: UUID
+) -> tuple[RequirementSourceProjection, ...]:
+    rows = session.execute(
+        select(RequirementSource, SourceRevision, KnowledgeSource)
+        .join(
+            SourceRevision,
+            SourceRevision.id == RequirementSource.source_revision_id,
+        )
+        .join(
+            KnowledgeSource,
+            KnowledgeSource.id == SourceRevision.knowledge_source_id,
+        )
+        .where(RequirementSource.requirement_version_id == requirement_version_id)
+        .order_by(KnowledgeSource.source_code, RequirementSource.locator)
+    )
+    return tuple(
+        RequirementSourceProjection(
+            source.title,
+            source.canonical_url,
+            link.locator,
+            revision.reviewed_at,
+        )
+        for link, revision, source in rows
+    )
+
+
+def _requirement_versions_for_release(
+    session: Session, release_id: UUID
+) -> list[RequirementVersion]:
+    return list(
+        session.scalars(
+            select(RequirementVersion)
+            .join(RuleRequirement, RuleRequirement.requirement_version_id == RequirementVersion.id)
+            .join(RuleVersion, RuleVersion.id == RuleRequirement.rule_version_id)
+            .where(RuleVersion.rule_set_version_id == release_id)
+            .distinct()
+            .order_by(RequirementVersion.id)
+        )
+    )
 
 
 def start_case_processing(
@@ -320,7 +431,14 @@ def start_case_processing(
     case_id: UUID,
 ) -> ImmigrationCase:
     _require_actor_type(officer, ActorType.OFFICER)
-    case = _require_record(session.get(ImmigrationCase, case_id), "case")
+    case = _require_record(
+        session.scalar(
+            select(ImmigrationCase)
+            .where(ImmigrationCase.id == case_id)
+            .with_for_update()
+        ),
+        "case",
+    )
     _require_status(case, CaseStatus.SUBMITTED)
     occurred_at = datetime.now(UTC)
     case.assigned_to_actor_id = officer.id

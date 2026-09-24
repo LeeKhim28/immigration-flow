@@ -1,5 +1,7 @@
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Barrier
 from uuid import UUID
 
 import pytest
@@ -553,9 +555,47 @@ def test_case_owner_reads_materialized_requirement_checklist(
                 "statement": "Provide the synthetic Student Pass document.",
                 "machine_handling": "Check document metadata.",
                 "status": "PENDING",
+                "sources": [{
+                    "title": "Case API source",
+                    "canonical_url": "https://official.example/case-api",
+                    "locator": "Synthetic section",
+                    "reviewed_at": "2020-01-01T00:00:00Z",
+                }],
             }
         ],
     }
+
+
+def test_draft_checklist_previews_current_rules_without_assigning_them(
+    client: TestClient,
+    session: Session,
+) -> None:
+    applicant, profile, institution, programme = _seed_applicant_context(session, "PREVIEW")
+    case_id = _create_draft(
+        client,
+        applicant,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-PREVIEW",
+    )
+
+    response = client.get(
+        f"/api/v1/applicant/cases/{case_id}/checklist",
+        headers={"X-Actor-Id": str(applicant.id)},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["rule_set_version"] == "1.0.0"
+    assert response.json()["requirements"][0]["status"] == "PENDING"
+    session.expire_all()
+    case = session.get(ImmigrationCase, case_id)
+    assert case is not None and case.current_rule_set_version_id is None
+    assert session.scalar(
+        select(func.count()).select_from(CaseRuleAssignment).where(
+            CaseRuleAssignment.case_id == case_id
+        )
+    ) == 0
 
 
 def test_other_applicant_cannot_read_case_requirement_checklist(
@@ -606,7 +646,14 @@ def test_officer_lists_submitted_cases(client: TestClient, session: Session) -> 
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()] == [str(case_id)]
-    assert response.json()[0]["status"] == "SUBMITTED"
+    item = response.json()[0]
+    assert item["status"] == "SUBMITTED"
+    assert item["submitted_at"] is not None
+    assert item["institution"] == {
+        "id": str(institution.id), "name": "Institution QUEUE", "code": "INST-QUEUE"
+    }
+    assert item["readiness"] == {"outcome": "manual_review", "finding_count": 1}
+    assert "applicant_profile_id" not in item
 
 
 def test_officer_starts_processing_and_records_transition_evidence(
@@ -759,6 +806,71 @@ def test_officer_cannot_start_processing_twice(client: TestClient, session: Sess
 
     assert response.status_code == 409
     assert response.json() == {"detail": "case is not in the required state"}
+
+
+def test_concurrent_officers_start_processing_exactly_once(
+    client: TestClient,
+    session: Session,
+) -> None:
+    applicant, profile, institution, programme = _seed_applicant_context(session, "CONCURRENT")
+    case_id = _create_draft(
+        client,
+        applicant,
+        profile,
+        institution,
+        programme,
+        case_number="CASE-API-CONCURRENT",
+    )
+    _submit_draft(client, applicant, case_id)
+    officer = _seed_officer(session, "CONCURRENT")
+    barrier = Barrier(2)
+
+    def start_processing() -> int:
+        barrier.wait()
+        response = client.post(
+            f"/api/v1/officer/cases/{case_id}/start-processing",
+            headers={"X-Actor-Id": str(officer.id)},
+        )
+        return response.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        statuses = list(executor.map(lambda _: start_processing(), range(2)))
+
+    assert sorted(statuses) == [200, 409]
+    session.expire_all()
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(CaseStatusHistory)
+            .where(
+                CaseStatusHistory.case_id == case_id,
+                CaseStatusHistory.reason_code == "OFFICER_STARTED_PROCESSING",
+            )
+        )
+        == 1
+    )
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(CaseEvent)
+            .where(
+                CaseEvent.case_id == case_id,
+                CaseEvent.event_type == "CASE_PROCESSING_STARTED",
+            )
+        )
+        == 1
+    )
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(AuditEvent)
+            .where(
+                AuditEvent.case_id == case_id,
+                AuditEvent.action == "CASE_PROCESSING_STARTED",
+            )
+        )
+        == 1
+    )
 
 
 @pytest.mark.parametrize(

@@ -66,13 +66,87 @@ class DocumentMetadataResponse(BaseModel):
     storage_reference: str
 
 
+class RequirementSourceResponse(BaseModel):
+    title: str
+    canonical_url: str
+    locator: str
+    reviewed_at: datetime | None
+
+
 class ChecklistRequirementResponse(BaseModel):
     requirement_code: str
     statement: str
     machine_handling: str
     status: str
+    sources: list[RequirementSourceResponse]
 
 
 class CaseChecklistResponse(BaseModel):
     rule_set_version: str
     requirements: list[ChecklistRequirementResponse]
+
+
+class NamedReferenceResponse(BaseModel):
+    id: UUID
+    name: str
+    code: str
+
+
+class ReadinessSummaryResponse(BaseModel):
+    outcome: str
+    finding_count: int
+
+
+class OfficerQueueItemResponse(BaseModel):
+    id: UUID
+    case_number: str
+    status: CaseStatus
+    stage: CaseStage
+    submitted_at: datetime
+    institution: NamedReferenceResponse
+    readiness: ReadinessSummaryResponse
+
+
+class CaseDetailResponse(BaseModel):
+    id: UUID
+    case_number: str
+    applicant_profile_id: UUID
+    status: CaseStatus
+    stage: CaseStage
+    synthetic: bool
+    institution: NamedReferenceResponse
+    programme: NamedReferenceResponse
+    nationality_code: str
+    passport_expires_at: datetime
+    rule_set_version: str | None
+
+
+class TimelineEntryResponse(BaseModel):
+    id: UUID
+    event_type: str
+    occurred_at: datetime
+
+
+class CaseTimelineResponse(BaseModel):
+    events: list[TimelineEntryResponse]
+
+
+class EvaluationFindingResponse(BaseModel):
+    id: UUID
+    outcome: str
+    code: str
+    message: str
+
+
+class EvaluationResponse(BaseModel):
+    id: UUID
+    outcome: str
+    trigger: str
+    evaluated_at: datetime
+    supersedes_evaluation_id: UUID | None
+    rule_set_version: str
+    findings: list[EvaluationFindingResponse]
+
+
+class CaseEvaluationHistoryResponse(BaseModel):
+    evaluations: list[EvaluationResponse]

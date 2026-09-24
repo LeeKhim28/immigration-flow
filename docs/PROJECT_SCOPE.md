@@ -18,7 +18,7 @@ V1 follows one coherent journey for an international higher-education student:
 4. Validate document presence, type, and basic expiry/format constraints.
 5. Track case states and surface missing information.
 6. Present an officer/institution review queue with an audit trail.
-7. Support graduation transition research for Graduate Pass or an employment-related pathway without automatically declaring eligibility.
+7. Preserve an extension path for later Graduate Pass or employment-pathway research without claiming those services are implemented in V1.
 
 ## V1 users
 
@@ -69,7 +69,6 @@ Additional services—professional visit, foreign worker, dependant, other passe
 - Tests cover the happy path, missing/expired documents, unsupported cases, stale sources, and role restrictions.
 - The README, architecture notes, demo, and commit history explain the engineering decisions clearly to an interviewer.
 
-## Next milestone
+## Delivered milestone
 
-Write the first user journey and acceptance tests, design the core case/source/rule data model, and research the exact official requirements needed for that journey. Do not expand to unrelated immigration services until this vertical works end to end.
-
+The Student Pass V1 synthetic browser journey now works end to end: reviewed knowledge activation, Applicant rule preview and formal handover, immutable assignment/evaluation, Officer review and processing, audit history, and automated Chromium verification. The next responsible milestone is production identity, authorization, storage, secrets, monitoring, retention, and deployment design. Unrelated immigration services remain out of scope until those foundations are addressed.
