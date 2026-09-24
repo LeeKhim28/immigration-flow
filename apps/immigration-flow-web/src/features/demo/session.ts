@@ -45,9 +45,7 @@ export function useResetDemoSession() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      await deleteDemoSession();
-      clearDemoSession();
-      return createDemoSession();
+      return deleteDemoSession();
     },
     onSuccess: (session) => {
       writeDemoSession(session);

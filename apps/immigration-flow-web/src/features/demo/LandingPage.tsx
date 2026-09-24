@@ -12,9 +12,13 @@ export function LandingPage() {
   const [resetComplete, setResetComplete] = useState(false);
 
   async function confirmReset() {
-    await reset.mutateAsync();
-    setConfirming(false);
-    setResetComplete(true);
+    try {
+      await reset.mutateAsync();
+      setConfirming(false);
+      setResetComplete(true);
+    } catch {
+      setResetComplete(false);
+    }
   }
 
   return (
@@ -59,7 +63,7 @@ export function LandingPage() {
             <div role="dialog" aria-modal="true" aria-labelledby="reset-title" className={styles.dialog}>
               <h2 id="reset-title">Reset this demo?</h2>
               <p>The current case will be withdrawn and kept in the audit history.</p>
-              {reset.error ? <p role="alert">Reset failed. Your current session is unchanged.</p> : null}
+              {reset.error ? <p role="alert">The replacement case could not be prepared. This browser will keep the current demo reference so you can retry.</p> : null}
               <div>
                 <button type="button" onClick={() => void confirmReset()} disabled={reset.isPending}>
                   Confirm reset

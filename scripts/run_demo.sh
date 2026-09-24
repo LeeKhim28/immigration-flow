@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME_DIR="$PROJECT_ROOT/.demo-runtime"
+RUNTIME_DIR="${DEMO_RUNTIME_DIR:-$PROJECT_ROOT/.demo-runtime}"
 PID_FILE="$RUNTIME_DIR/pids"
 BACKEND_LOG="$RUNTIME_DIR/backend.log"
 FRONTEND_LOG="$RUNTIME_DIR/frontend.log"
@@ -12,6 +12,16 @@ cleanup() {
   if [[ -n "${BACKEND_PID:-}" ]]; then kill "$BACKEND_PID" 2>/dev/null || true; fi
   if [[ -n "${FRONTEND_PID:-}" ]]; then kill "$FRONTEND_PID" 2>/dev/null || true; fi
   rm -f "$PID_FILE"
+}
+
+process_fingerprint() {
+  local pid="$1"
+  local command_line
+  local started_at
+  command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+  started_at="$(ps -p "$pid" -o lstart= 2>/dev/null || true)"
+  [[ -n "$command_line" && -n "$started_at" ]] || return 1
+  printf '%s\t%s' "$started_at" "$(printf '%s' "$command_line" | cksum | awk '{print $1 ":" $2}')"
 }
 trap cleanup EXIT INT TERM
 
@@ -57,6 +67,10 @@ curl --fail --silent http://127.0.0.1:8000/health >/dev/null || { echo "Backend 
 
 npm --prefix apps/immigration-flow-web run dev -- --host 127.0.0.1 --port 4173 >"$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
-printf '%s\n%s\n' "$BACKEND_PID" "$FRONTEND_PID" >"$PID_FILE"
+BACKEND_FINGERPRINT="$(process_fingerprint "$BACKEND_PID")"
+FRONTEND_FINGERPRINT="$(process_fingerprint "$FRONTEND_PID")"
+printf 'backend\t%s\t%s\nfrontend\t%s\t%s\n' \
+  "$BACKEND_PID" "$BACKEND_FINGERPRINT" \
+  "$FRONTEND_PID" "$FRONTEND_FINGERPRINT" >"$PID_FILE"
 echo "ImmigrationFlow demo: http://127.0.0.1:4173"
 wait "$BACKEND_PID" "$FRONTEND_PID"

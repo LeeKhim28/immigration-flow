@@ -7,7 +7,7 @@ import { useApplicantCase } from "./api";
 export function CaseOverview({ actorId }: { actorId: string }) {
   const { caseId = "" } = useParams();
   const query = useApplicantCase(caseId, actorId);
-  return <AsyncBoundary isPending={query.isPending} error={query.error} retry={() => void query.refetch()}>
+  return <AsyncBoundary isPending={query.isPending} error={query.error} retry={() => void query.refetch()} recoverDemoSession>
     {query.data ? <section className={styles.panel}>
       <p className="eyebrow">Synthetic case</p>
       <h2>{query.data.case_number}</h2>

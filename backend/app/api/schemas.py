@@ -66,11 +66,19 @@ class DocumentMetadataResponse(BaseModel):
     storage_reference: str
 
 
+class RequirementSourceResponse(BaseModel):
+    title: str
+    canonical_url: str
+    locator: str
+    reviewed_at: datetime | None
+
+
 class ChecklistRequirementResponse(BaseModel):
     requirement_code: str
     statement: str
     machine_handling: str
     status: str
+    sources: list[RequirementSourceResponse]
 
 
 class CaseChecklistResponse(BaseModel):
@@ -82,6 +90,21 @@ class NamedReferenceResponse(BaseModel):
     id: UUID
     name: str
     code: str
+
+
+class ReadinessSummaryResponse(BaseModel):
+    outcome: str
+    finding_count: int
+
+
+class OfficerQueueItemResponse(BaseModel):
+    id: UUID
+    case_number: str
+    status: CaseStatus
+    stage: CaseStage
+    submitted_at: datetime
+    institution: NamedReferenceResponse
+    readiness: ReadinessSummaryResponse
 
 
 class CaseDetailResponse(BaseModel):

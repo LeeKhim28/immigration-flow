@@ -43,6 +43,9 @@ export const checklistSchema = z.object({
     statement: z.string(),
     machine_handling: z.string(),
     status: z.string(),
+    sources: z.array(z.object({
+      title: z.string(), canonical_url: z.url(), locator: z.string(), reviewed_at: z.iso.datetime().nullable(),
+    })),
   })),
 });
 
@@ -69,13 +72,18 @@ export const caseSummarySchema = z.object({
   id: z.string().uuid(), case_number: z.string(), applicant_profile_id: z.string().uuid(),
   status: caseStatusSchema, stage: z.string(),
 });
-export const officerQueueSchema = z.array(caseSummarySchema);
+export const officerQueueSchema = z.array(z.object({
+  id: z.string().uuid(), case_number: z.string(), status: caseStatusSchema, stage: z.string(),
+  submitted_at: z.iso.datetime(), institution: namedReferenceSchema,
+  readiness: z.object({ outcome: z.string(), finding_count: z.number().int().nonnegative() }),
+}));
 export const timelineEventSchema = z.object({
   id: z.string().uuid(), event_type: z.string(), occurred_at: z.iso.datetime(),
 });
 export const officerCaseSchema = caseDetailSchema.extend({
   evaluations: evaluationHistorySchema.shape.evaluations,
   events: z.array(timelineEventSchema),
+  checklist: checklistSchema,
 });
 
 export type DemoSession = z.infer<typeof demoSessionSchema>;

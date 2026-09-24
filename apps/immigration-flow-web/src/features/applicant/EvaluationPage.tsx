@@ -7,7 +7,7 @@ import { useEvaluations } from "./api";
 export function EvaluationPage({ actorId }: { actorId: string }) {
   const { caseId = "" } = useParams();
   const query = useEvaluations(caseId, actorId);
-  return <AsyncBoundary isPending={query.isPending} error={query.error} retry={() => void query.refetch()}>
+  return <AsyncBoundary isPending={query.isPending} error={query.error} retry={() => void query.refetch()} recoverDemoSession>
     <section className={styles.panel}>
       <p className="eyebrow">Deterministic checks · Not an official decision</p>
       <h2>Readiness result</h2>

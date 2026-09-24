@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.api.dependencies import DatabaseSession
@@ -34,8 +34,13 @@ def get_or_create_demo_session(session: DatabaseSession) -> DemoSessionResponse:
     )
 
 
-@router.delete("/session", status_code=status.HTTP_204_NO_CONTENT)
-def reset_demo_session(session: DatabaseSession) -> Response:
+@router.delete("/session", response_model=DemoSessionResponse)
+def reset_demo_session(session: DatabaseSession) -> DemoSessionResponse:
     _require_demo_mode()
-    DemoSessionService.reset(session)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    demo = DemoSessionService.reset(session)
+    return DemoSessionResponse(
+        applicant_actor_id=demo.applicant_actor_id,
+        officer_actor_id=demo.officer_actor_id,
+        case_id=demo.case_id,
+        case_number=demo.case_number,
+    )

@@ -80,7 +80,9 @@ def test_applicant_timeline_is_chronological(
 
     assert response.status_code == 200
     events = response.json()["events"]
-    assert [event["event_type"] for event in events] == ["CASE_CREATED"]
+    event_types = [event["event_type"] for event in events]
+    assert event_types[0] == "CASE_CREATED"
+    assert event_types.count("DOCUMENT_METADATA_RECORDED") == 8
     assert events == sorted(events, key=lambda event: (event["occurred_at"], event["id"]))
 
 
@@ -109,7 +111,8 @@ def test_officer_can_read_case_detail_but_applicant_cannot_use_officer_route(
     assert officer_response.status_code == 200
     assert officer_response.json()["case_number"] == demo["case_number"]
     assert officer_response.json()["evaluations"] == []
-    assert [item["event_type"] for item in officer_response.json()["events"]] == [
-        "CASE_CREATED"
-    ]
+    assert officer_response.json()["checklist"]["requirements"] == []
+    event_types = [item["event_type"] for item in officer_response.json()["events"]]
+    assert event_types[0] == "CASE_CREATED"
+    assert event_types.count("DOCUMENT_METADATA_RECORDED") == 8
     assert applicant_response.status_code == 403

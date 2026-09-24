@@ -11,7 +11,7 @@ export function HandoverPage({ actorId }: { actorId: string }) {
   const detail = useApplicantCase(caseId, actorId);
   const submit = useSubmitCase(caseId, actorId);
   const [confirming, setConfirming] = useState(false);
-  return <AsyncBoundary isPending={detail.isPending} error={detail.error} retry={() => void detail.refetch()}>
+  return <AsyncBoundary isPending={detail.isPending} error={detail.error} retry={() => void detail.refetch()} recoverDemoSession>
     <section className={styles.panel}>
       <p className="eyebrow">Formal handover</p><h2>Submit prepared case to Immigration</h2>
       <p>The server-created Immigration submission timestamp determines which official rule version applies. Officer processing happens afterward and does not change that boundary.</p>

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { server } from "../../test/server";
 import { LandingPage } from "./LandingPage";
-import { clearDemoSession } from "./session";
+import { clearDemoSession, readDemoSession, writeDemoSession } from "./session";
 
 const response = {
   applicant_actor_id: "5f73f646-da4c-466d-a842-d59167d508ae",
@@ -50,9 +50,14 @@ describe("LandingPage", () => {
   });
 
   it("requires confirmation before resetting the current scenario", async () => {
+    const replacement = {
+      ...response,
+      case_id: "d2e1bb83-e63f-4ab9-b979-502ebfd2a60a",
+      case_number: "IF-DEMO-STUDENT-PASS-002",
+    };
     server.use(
       http.post("/api/v1/demo/session", () => HttpResponse.json(response)),
-      http.delete("/api/v1/demo/session", () => new HttpResponse(null, { status: 204 })),
+      http.delete("/api/v1/demo/session", () => HttpResponse.json(replacement)),
     );
     renderPage();
     await screen.findByRole("link", { name: /explore as applicant/i });
@@ -62,5 +67,21 @@ describe("LandingPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirm reset/i }));
 
     expect(await screen.findByText(/fresh synthetic case is ready/i)).toBeInTheDocument();
+  });
+
+  it("keeps the current browser session when atomic reset fails", async () => {
+    writeDemoSession(response);
+    server.use(
+      http.delete("/api/v1/demo/session", () => HttpResponse.error()),
+      http.post("/api/v1/demo/session", () => HttpResponse.json(response)),
+    );
+    renderPage();
+    await screen.findByRole("link", { name: /explore as applicant/i });
+
+    fireEvent.click(screen.getByRole("button", { name: /reset demo/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm reset/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/replacement case could not be prepared/i);
+    expect(readDemoSession()).toEqual(response);
   });
 });

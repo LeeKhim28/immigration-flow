@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import UUID
 
 from sqlalchemy import func, select, text
@@ -11,6 +12,8 @@ from app.database.enums import (
     ApplicationType,
     CaseStage,
     CaseStatus,
+    DocumentStatus,
+    DocumentType,
     InstitutionType,
     ServiceType,
 )
@@ -20,6 +23,8 @@ from app.database.models import (
     AuditEvent,
     CaseEvent,
     CaseStatusHistory,
+    Document,
+    DocumentVersion,
     ImmigrationCase,
     Institution,
     Programme,
@@ -33,6 +38,16 @@ PROFILE_REFERENCE = f"{DEMO_PREFIX}PROFILE"
 INSTITUTION_CODE = "IF-DEMO-UNIVERSITY"
 CASE_NUMBER_PREFIX = "IF-DEMO-STUDENT-PASS-"
 ADVISORY_LOCK_KEY = 4_938_212_026
+DEMO_DOCUMENT_TYPES = (
+    DocumentType.PHOTO,
+    DocumentType.PASSPORT_BIODATA,
+    DocumentType.PASSPORT_VISA_PAGES,
+    DocumentType.PASSPORT_OBSERVATION_PAGES,
+    DocumentType.OFFER_LETTER,
+    DocumentType.HEALTH_DECLARATION,
+    DocumentType.ACADEMIC_RECORDS,
+    DocumentType.ENGLISH_EVIDENCE,
+)
 
 
 @dataclass(frozen=True)
@@ -52,7 +67,10 @@ class DemoSessionService:
         )
         current = session.scalar(
             select(ImmigrationCase)
-            .where(ImmigrationCase.created_by_actor_id == applicant.id)
+            .where(
+                ImmigrationCase.created_by_actor_id == applicant.id,
+                ImmigrationCase.case_number.startswith(CASE_NUMBER_PREFIX),
+            )
             .order_by(ImmigrationCase.created_at.desc(), ImmigrationCase.id.desc())
             .limit(1)
         )
@@ -68,17 +86,17 @@ class DemoSessionService:
         return DemoSession(applicant.id, officer.id, current.id, current.case_number)
 
     @staticmethod
-    def reset(session: Session) -> None:
+    def reset(session: Session) -> DemoSession:
         DemoSessionService._lock(session)
-        applicant = session.scalar(
-            select(Actor).where(Actor.external_reference == APPLICANT_REFERENCE)
+        applicant, profile, officer, institution, programme = (
+            DemoSessionService._get_or_create_reference_data(session)
         )
-        if applicant is None:
-            session.commit()
-            return
         current = session.scalar(
             select(ImmigrationCase)
-            .where(ImmigrationCase.created_by_actor_id == applicant.id)
+            .where(
+                ImmigrationCase.created_by_actor_id == applicant.id,
+                ImmigrationCase.case_number.startswith(CASE_NUMBER_PREFIX),
+            )
             .order_by(ImmigrationCase.created_at.desc(), ImmigrationCase.id.desc())
             .limit(1)
         )
@@ -87,7 +105,20 @@ class DemoSessionService:
             CaseStatus.WITHDRAWN,
         }:
             DemoSessionService._withdraw_case(session, current, applicant)
+        replacement = DemoSessionService._create_case(
+            session,
+            applicant,
+            profile,
+            institution,
+            programme,
+        )
         session.commit()
+        return DemoSession(
+            applicant.id,
+            officer.id,
+            replacement.id,
+            replacement.case_number,
+        )
 
     @staticmethod
     def _lock(session: Session) -> None:
@@ -172,7 +203,10 @@ class DemoSessionService:
             session.scalar(
                 select(func.count())
                 .select_from(ImmigrationCase)
-                .where(ImmigrationCase.created_by_actor_id == applicant.id)
+                .where(
+                    ImmigrationCase.created_by_actor_id == applicant.id,
+                    ImmigrationCase.case_number.startswith(CASE_NUMBER_PREFIX),
+                )
             )
             or 0
         ) + 1
@@ -208,7 +242,65 @@ class DemoSessionService:
             reason="CASE_CREATED",
             action="CASE_CREATED",
         )
+        DemoSessionService._seed_document_metadata(session, case, applicant)
         return case
+
+    @staticmethod
+    def _seed_document_metadata(
+        session: Session,
+        case: ImmigrationCase,
+        applicant: Actor,
+    ) -> None:
+        captured_at = datetime.now(UTC)
+        for document_type in DEMO_DOCUMENT_TYPES:
+            document = Document(
+                case_id=case.id,
+                document_type=document_type,
+                owner_actor_id=applicant.id,
+                status=DocumentStatus.ACTIVE,
+            )
+            session.add(document)
+            session.flush()
+            label = document_type.value.lower().replace("_", "-")
+            version = DocumentVersion(
+                document_id=document.id,
+                version_number=1,
+                storage_reference=f"metadata-only://demo/{case.case_number}/{label}",
+                content_hash=sha256(
+                    f"{case.case_number}:{document_type.value}".encode()
+                ).hexdigest(),
+                mime_type="application/x-immigration-flow-metadata",
+                size_bytes=0,
+                captured_at=captured_at,
+                created_by_actor_id=applicant.id,
+            )
+            session.add(version)
+            session.flush()
+            payload = {
+                "document_type": document_type.value,
+                "version_number": 1,
+                "synthetic": True,
+            }
+            session.add_all(
+                [
+                    CaseEvent(
+                        case_id=case.id,
+                        event_type="DOCUMENT_METADATA_RECORDED",
+                        event_payload=payload,
+                        occurred_at=captured_at,
+                        actor_id=applicant.id,
+                    ),
+                    AuditEvent(
+                        case_id=case.id,
+                        actor_id=applicant.id,
+                        action="DOCUMENT_METADATA_RECORDED",
+                        entity_type="DOCUMENT_VERSION",
+                        entity_id=version.id,
+                        after_summary=payload,
+                        occurred_at=captured_at,
+                    ),
+                ]
+            )
 
     @staticmethod
     def _withdraw_case(session: Session, case: ImmigrationCase, actor: Actor) -> None:

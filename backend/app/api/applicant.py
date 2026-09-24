@@ -13,6 +13,7 @@ from app.api.schemas import (
     DocumentMetadataResponse,
     DraftStudentPassCaseRequest,
     RecordDocumentMetadataRequest,
+    RequirementSourceResponse,
     SubmissionResponse,
     SubmitCaseRequest,
 )
@@ -166,6 +167,15 @@ def get_checklist(
                 statement=item.statement,
                 machine_handling=item.machine_handling,
                 status=item.status,
+                sources=[
+                    RequirementSourceResponse(
+                        title=source.title,
+                        canonical_url=source.canonical_url,
+                        locator=source.locator,
+                        reviewed_at=source.reviewed_at,
+                    )
+                    for source in item.sources
+                ],
             )
             for item in checklist.requirements
         ],

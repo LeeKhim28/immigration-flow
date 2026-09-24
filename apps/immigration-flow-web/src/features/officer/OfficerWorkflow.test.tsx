@@ -10,14 +10,16 @@ import { OfficerQueue } from "./OfficerQueue";
 
 const officerId = "71e25d11-7ec4-4120-a018-d611f3b5040b";
 const caseId = "87490004-a1bc-45d1-8aa7-0ca1f5147ab4";
-const summary = { id: caseId, case_number: "IF-DEMO-STUDENT-PASS-001", applicant_profile_id: "31bfb11f-847b-442e-8421-bddbb111933b", status: "SUBMITTED", stage: "IMMIGRATION_PROCESSING" };
+const summary = { id: caseId, case_number: "IF-DEMO-STUDENT-PASS-001", status: "SUBMITTED", stage: "IMMIGRATION_PROCESSING", submitted_at: "2026-09-19T07:00:00Z", institution: { id: "7727db80-1bbc-456f-a5dc-b8e696862f35", name: "Northstar University (Synthetic)", code: "DEMO-U" }, readiness: { outcome: "manual_review", finding_count: 1 } };
 const detail = {
   ...summary, synthetic: true,
+  applicant_profile_id: "31bfb11f-847b-442e-8421-bddbb111933b",
   institution: { id: "7727db80-1bbc-456f-a5dc-b8e696862f35", name: "Northstar University (Synthetic)", code: "DEMO-U" },
   programme: { id: "34299a48-872d-4fc3-8294-8beca961c220", name: "Computer Science (Synthetic)", code: "BSC-CS" },
   nationality_code: "IDN", passport_expires_at: "2031-12-31T00:00:00Z", rule_set_version: "1.0.0",
   evaluations: [{ id: "6577d125-af8e-459a-9f63-77c44393385b", outcome: "manual_review", trigger: "INITIAL_SUBMISSION", evaluated_at: "2026-09-19T07:00:00Z", supersedes_evaluation_id: null, rule_set_version: "1.0.0", findings: [{ id: "11baaa4f-f3d9-43af-9cbe-e18638b76f02", outcome: "manual_review", code: "VERIFY", message: "Verify synthetic evidence." }] }],
   events: [{ id: "190a23ef-5345-4b83-be9e-37976d52999a", event_type: "CASE_SUBMITTED_TO_IMMIGRATION", occurred_at: "2026-09-19T07:00:00Z" }],
+  checklist: { rule_set_version: "1.0.0", requirements: [{ requirement_code: "SP-PASSPORT", statement: "Provide passport biodata.", machine_handling: "Metadata validation", status: "PENDING", sources: [{ title: "Immigration guidance", canonical_url: "https://official.example/passport", locator: "Required documents", reviewed_at: "2026-08-30T00:00:00Z" }] }] },
 };
 
 function wrap(element: React.ReactNode, path = "/officer/cases") {
@@ -33,12 +35,16 @@ describe("Officer workspace", () => {
     wrap(<OfficerQueue actorId={officerId} />);
     expect(await screen.findByRole("link", { name: /IF-DEMO-STUDENT-PASS-001/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/status submitted/i)).toBeInTheDocument();
+    expect(screen.getByText(/northstar university/i)).toBeInTheDocument();
+    expect(screen.getByText(/manual review · 1 finding/i)).toBeInTheDocument();
   });
 
   it("renders evidence, deterministic findings, and audit timeline", async () => {
     server.use(http.get(`/api/v1/officer/cases/${caseId}`, () => HttpResponse.json(detail)));
     wrap(<OfficerCasePage actorId={officerId} />, `/officer/cases/${caseId}`);
     expect(await screen.findByText("Verify synthetic evidence.")).toBeInTheDocument();
+    expect(screen.getByText("Provide passport biodata.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /immigration guidance/i })).toHaveAttribute("href", "https://official.example/passport");
     expect(screen.getByText(/case submitted to immigration/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /approve|reject/i })).not.toBeInTheDocument();
   });
@@ -46,7 +52,7 @@ describe("Officer workspace", () => {
   it("starts processing only after explicit action", async () => {
     server.use(
       http.get(`/api/v1/officer/cases/${caseId}`, () => HttpResponse.json(detail)),
-      http.post(`/api/v1/officer/cases/${caseId}/start-processing`, () => HttpResponse.json({ ...summary, status: "IN_PROCESS" })),
+      http.post(`/api/v1/officer/cases/${caseId}/start-processing`, () => HttpResponse.json({ id: caseId, case_number: summary.case_number, applicant_profile_id: "31bfb11f-847b-442e-8421-bddbb111933b", status: "IN_PROCESS", stage: summary.stage })),
     );
     wrap(<OfficerCasePage actorId={officerId} />, `/officer/cases/${caseId}`);
     fireEvent.click(await screen.findByRole("button", { name: /start processing/i }));

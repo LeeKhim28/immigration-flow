@@ -45,12 +45,14 @@ describe("Applicant workspace", () => {
 
   it("shows source-ready checklist copy and metadata-only boundary", async () => {
     server.use(http.get(`/api/v1/applicant/cases/${caseId}/checklist`, () => HttpResponse.json({
-      rule_set_version: "1.0.0", requirements: [{ requirement_code: "SP-PASSPORT", statement: "Provide passport biodata.", machine_handling: "Metadata validation", status: "PENDING" }],
+      rule_set_version: "1.0.0", requirements: [{ requirement_code: "SP-PASSPORT", statement: "Provide passport biodata.", machine_handling: "Metadata validation", status: "PENDING", sources: [{ title: "Immigration guidance", canonical_url: "https://official.example/passport", locator: "Required documents", reviewed_at: "2026-08-30T00:00:00Z" }] }],
     })));
     renderPage(<RequirementsPage actorId={actorId} />);
     expect(await screen.findByText(/rule set 1.0.0/i)).toBeInTheDocument();
     expect(screen.getByText(/metadata only/i)).toBeInTheDocument();
     expect(screen.getByText("Provide passport biodata.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /immigration guidance/i })).toHaveAttribute("href", "https://official.example/passport");
+    expect(screen.getByText(/required documents/i)).toBeInTheDocument();
   });
 
   it("labels deterministic output as readiness rather than approval", async () => {

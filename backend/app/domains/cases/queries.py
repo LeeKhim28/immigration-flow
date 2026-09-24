@@ -2,14 +2,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.database.enums import ActorType, CaseStage, CaseStatus
+from app.database.enums import ActorType, CaseStage, CaseStatus, SubmissionType
 from app.database.models import (
     Actor,
     ApplicantProfile,
     CaseEvent,
+    CaseSubmission,
     EvaluationFinding,
     ImmigrationCase,
     Institution,
@@ -68,6 +69,71 @@ class EvaluationProjection:
     supersedes_evaluation_id: UUID | None
     rule_set_version: str
     findings: tuple[FindingProjection, ...]
+
+
+@dataclass(frozen=True)
+class ReadinessSummary:
+    outcome: str
+    finding_count: int
+
+
+@dataclass(frozen=True)
+class OfficerQueueItem:
+    id: UUID
+    case_number: str
+    status: CaseStatus
+    stage: CaseStage
+    submitted_at: datetime
+    institution: NamedReference
+    readiness: ReadinessSummary
+
+
+def list_officer_case_summaries(
+    session: Session, actor: Actor, status: CaseStatus
+) -> tuple[OfficerQueueItem, ...]:
+    _require_actor(actor, ActorType.OFFICER)
+    if status not in {CaseStatus.SUBMITTED, CaseStatus.IN_PROCESS}:
+        raise CaseWorkflowError(422, "status filter is not supported")
+    rows = session.execute(
+        select(ImmigrationCase, CaseSubmission, Institution)
+        .join(StudentPassCaseProfile, StudentPassCaseProfile.case_id == ImmigrationCase.id)
+        .join(Institution, Institution.id == StudentPassCaseProfile.institution_id)
+        .join(CaseSubmission, CaseSubmission.case_id == ImmigrationCase.id)
+        .where(
+            ImmigrationCase.status == status,
+            CaseSubmission.submission_type == SubmissionType.INITIAL,
+        )
+        .order_by(CaseSubmission.submitted_at, ImmigrationCase.id)
+    )
+    items = []
+    for case, submission, institution in rows:
+        evaluation = session.scalar(
+            select(RuleEvaluation)
+            .where(RuleEvaluation.case_id == case.id)
+            .order_by(RuleEvaluation.evaluated_at.desc(), RuleEvaluation.id.desc())
+            .limit(1)
+        )
+        if evaluation is None:
+            readiness = ReadinessSummary("not_evaluated", 0)
+        else:
+            count = session.scalar(
+                select(func.count())
+                .select_from(EvaluationFinding)
+                .where(EvaluationFinding.rule_evaluation_id == evaluation.id)
+            )
+            readiness = ReadinessSummary(evaluation.outcome, int(count or 0))
+        items.append(
+            OfficerQueueItem(
+                case.id,
+                case.case_number,
+                case.status,
+                case.stage,
+                submission.submitted_at,
+                NamedReference(institution.id, institution.name, institution.institution_code),
+                readiness,
+            )
+        )
+    return tuple(items)
 
 
 def get_applicant_case_detail(
@@ -209,4 +275,4 @@ def _get_case_detail(session: Session, case_id: UUID) -> tuple[CaseDetail, UUID]
 
 def _require_actor(actor: Actor, expected: ActorType) -> None:
     if actor.actor_type != expected:
-        raise CaseWorkflowError(403, f"actor must be {expected.value}")
+        raise CaseWorkflowError(403, "actor is not permitted for this action")
