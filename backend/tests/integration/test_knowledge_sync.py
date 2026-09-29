@@ -137,9 +137,7 @@ def test_sync_reuses_identical_source_revision_across_code_only_commits(
 ) -> None:
     (tmp_path / ".git").write_text("synthetic", encoding="utf-8")
     current_sha = "a" * 40
-    monkeypatch.setattr(
-        "app.knowledge.sync.load_knowledge_bundle", lambda *_: _bundle(current_sha)
-    )
+    monkeypatch.setattr("app.knowledge.sync.load_knowledge_bundle", lambda *_: _bundle(current_sha))
 
     def factory() -> Session:
         return Session(clean_sync_database.bind)  # type: ignore[arg-type]
@@ -149,6 +147,4 @@ def test_sync_reuses_identical_source_revision_across_code_only_commits(
     second = KnowledgeSynchronizer(factory).sync(tmp_path, current_sha)
 
     assert second.status is KnowledgeSyncStatus.SUCCEEDED
-    assert clean_sync_database.scalar(
-        select(func.count()).select_from(SourceRevision)
-    ) == 1
+    assert clean_sync_database.scalar(select(func.count()).select_from(SourceRevision)) == 1

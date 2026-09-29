@@ -93,9 +93,7 @@ def test_prepare_demo_is_rejected_when_demo_mode_is_disabled(
     settings = type("SettingsStub", (), {"demo_mode": False})()
     monkeypatch.setattr("app.core.config.get_settings", lambda: settings)
 
-    exit_code = main(
-        ["prepare-demo", "--root", str(tmp_path), "--git-sha", "a" * 40]
-    )
+    exit_code = main(["prepare-demo", "--root", str(tmp_path), "--git-sha", "a" * 40])
 
     assert exit_code == 2
     assert "prepare-demo requires DEMO_MODE=true" in capsys.readouterr().err

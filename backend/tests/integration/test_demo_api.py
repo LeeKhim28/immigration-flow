@@ -67,9 +67,7 @@ def _add_newer_non_demo_case_for_demo_applicant(
     demo_case = session.get(ImmigrationCase, demo["case_id"])
     assert demo_case is not None
     profile = session.scalar(
-        select(ApplicantProfile).where(
-            ApplicantProfile.actor_id == demo["applicant_actor_id"]
-        )
+        select(ApplicantProfile).where(ApplicantProfile.actor_id == demo["applicant_actor_id"])
     )
     assert profile is not None
     ordinary_case = ImmigrationCase(
@@ -148,9 +146,7 @@ def test_demo_session_seeds_metadata_only_core_documents(
     case_id = response.json()["case_id"]
     documents = list(
         session.scalars(
-            select(Document)
-            .where(Document.case_id == case_id)
-            .order_by(Document.document_type)
+            select(Document).where(Document.case_id == case_id).order_by(Document.document_type)
         )
     )
     assert {document.document_type.value for document in documents} == {
@@ -167,8 +163,7 @@ def test_demo_session_seeds_metadata_only_core_documents(
     versions = list(session.scalars(select(DocumentVersion)))
     assert len(versions) == len(documents)
     assert all(
-        version.storage_reference.startswith("metadata-only://demo/")
-        for version in versions
+        version.storage_reference.startswith("metadata-only://demo/") for version in versions
     )
     assert all(version.size_bytes == 0 for version in versions)
 

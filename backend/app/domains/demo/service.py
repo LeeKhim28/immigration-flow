@@ -199,17 +199,20 @@ class DemoSessionService:
         institution: Institution,
         programme: Programme,
     ) -> ImmigrationCase:
-        sequence = int(
-            session.scalar(
-                select(func.count())
-                .select_from(ImmigrationCase)
-                .where(
-                    ImmigrationCase.created_by_actor_id == applicant.id,
-                    ImmigrationCase.case_number.startswith(CASE_NUMBER_PREFIX),
+        sequence = (
+            int(
+                session.scalar(
+                    select(func.count())
+                    .select_from(ImmigrationCase)
+                    .where(
+                        ImmigrationCase.created_by_actor_id == applicant.id,
+                        ImmigrationCase.case_number.startswith(CASE_NUMBER_PREFIX),
+                    )
                 )
+                or 0
             )
-            or 0
-        ) + 1
+            + 1
+        )
         case = ImmigrationCase(
             case_number=f"{CASE_NUMBER_PREFIX}{sequence:03d}",
             applicant_profile_id=profile.id,

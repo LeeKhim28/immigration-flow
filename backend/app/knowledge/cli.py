@@ -258,9 +258,7 @@ def _demo_actor(
     external_reference: str,
     display_name: str,
 ) -> Actor:
-    actor = session.scalar(
-        select(Actor).where(Actor.external_reference == external_reference)
-    )
+    actor = session.scalar(select(Actor).where(Actor.external_reference == external_reference))
     if actor is None:
         actor = Actor(
             actor_type=actor_type,

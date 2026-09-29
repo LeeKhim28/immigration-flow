@@ -433,9 +433,7 @@ def start_case_processing(
     _require_actor_type(officer, ActorType.OFFICER)
     case = _require_record(
         session.scalar(
-            select(ImmigrationCase)
-            .where(ImmigrationCase.id == case_id)
-            .with_for_update()
+            select(ImmigrationCase).where(ImmigrationCase.id == case_id).with_for_update()
         ),
         "case",
     )

@@ -555,12 +555,14 @@ def test_case_owner_reads_materialized_requirement_checklist(
                 "statement": "Provide the synthetic Student Pass document.",
                 "machine_handling": "Check document metadata.",
                 "status": "PENDING",
-                "sources": [{
-                    "title": "Case API source",
-                    "canonical_url": "https://official.example/case-api",
-                    "locator": "Synthetic section",
-                    "reviewed_at": "2020-01-01T00:00:00Z",
-                }],
+                "sources": [
+                    {
+                        "title": "Case API source",
+                        "canonical_url": "https://official.example/case-api",
+                        "locator": "Synthetic section",
+                        "reviewed_at": "2020-01-01T00:00:00Z",
+                    }
+                ],
             }
         ],
     }
@@ -591,11 +593,14 @@ def test_draft_checklist_previews_current_rules_without_assigning_them(
     session.expire_all()
     case = session.get(ImmigrationCase, case_id)
     assert case is not None and case.current_rule_set_version_id is None
-    assert session.scalar(
-        select(func.count()).select_from(CaseRuleAssignment).where(
-            CaseRuleAssignment.case_id == case_id
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(CaseRuleAssignment)
+            .where(CaseRuleAssignment.case_id == case_id)
         )
-    ) == 0
+        == 0
+    )
 
 
 def test_other_applicant_cannot_read_case_requirement_checklist(
@@ -650,7 +655,9 @@ def test_officer_lists_submitted_cases(client: TestClient, session: Session) -> 
     assert item["status"] == "SUBMITTED"
     assert item["submitted_at"] is not None
     assert item["institution"] == {
-        "id": str(institution.id), "name": "Institution QUEUE", "code": "INST-QUEUE"
+        "id": str(institution.id),
+        "name": "Institution QUEUE",
+        "code": "INST-QUEUE",
     }
     assert item["readiness"] == {"outcome": "manual_review", "finding_count": 1}
     assert "applicant_profile_id" not in item
