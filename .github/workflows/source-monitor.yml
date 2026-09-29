@@ -54,7 +54,7 @@ jobs:
           --output-state ../.monitor-state/monitor-state.json
           --trigger scheduled
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: source-monitor-state
           path: .monitor-state/monitor-state.json
