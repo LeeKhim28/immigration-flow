@@ -1,6 +1,6 @@
 # ImmigrationFlow backend
 
-Phase 2B.2A provides the knowledge synchronization and rule activation foundation. Phase 2B.2B–D adds a synthetic Student Pass workflow: applicant draft creation, document-metadata capture, formal handover to Immigration, rule-set assignment, materialized requirement checklists, deterministic preparation evaluation, policy-cutoff reassessment, officer queueing, and officer processing start. The backend uses PostgreSQL 18.6, nine ordered Alembic revisions, immutable source/requirement/rule/evaluation history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
+Phase 2B provides the knowledge, governance, and synthetic Student Pass workflow foundation; Phase 3 exposes it through the portfolio demo. The backend uses PostgreSQL 18.6, nine ordered Alembic revisions, immutable source/requirement/rule/evaluation history, atomic synchronization, administrator approval, locked activation, monitoring, and automated tests.
 
 The business API is intentionally narrow. It demonstrates case workflow and auditability; it does not integrate with Immigration, make decisions, upload documents, or authenticate real users.
 
@@ -71,7 +71,7 @@ The API accepts an existing synthetic actor UUID in `X-Actor-Id`. This header is
 3. `POST /api/v1/applicant/cases/{case_id}/documents` records one synthetic document's immutable metadata and first version for the case owner while the case is still `DRAFT`. It does not accept or store file bytes; `storage_reference` must use the `metadata-only://` demo scheme.
 4. `GET /api/v1/officer/cases?status=SUBMITTED` lists the officer queue.
 5. `POST /api/v1/officer/cases/{case_id}/start-processing` assigns the case to an officer and changes it to `IN_PROCESS`.
-6. `GET /api/v1/applicant/cases/{case_id}/checklist` returns the owned case's assigned semantic rule-set version and materialized requirements.
+6. `GET /api/v1/applicant/cases/{case_id}/checklist` previews the current applicable requirements for a draft without assigning them; after handover it returns the case's fixed semantic rule-set version and materialized requirements.
 
 At handover, the transaction selects the newest applicable `ACTIVE` Student Pass release by `submitted_at`, records an immutable rule assignment, and materializes its source-traceable requirements as `PENDING` checklist entries. A missing eligible release blocks the submission and leaves the case in `DRAFT`. Every transition creates a status-history row, a case event, and an audit event in the same transaction. `accepted_at` remains separate: it may only be populated later with official evidence, whereas `submitted_at` records the applicant’s completed handover.
 
@@ -87,6 +87,7 @@ The migration chain is:
 6. `0006_rule_versions_and_activation`
 7. `0007_submission_handover_timestamp`
 8. `0008_case_rule_assignments_and_requirements`
+9. `0009_rule_evaluations_and_findings`
 
 Together they create the platform, knowledge, and governance tables. The knowledge release path adds `knowledge_sync_run`, `knowledge_source`, `source_revision`, `requirement`, `requirement_version`, `requirement_source`, `rule_set`, `rule_set_version`, `rule_definition`, `rule_version`, `rule_requirement`, and `approval_event`.
 
@@ -147,7 +148,7 @@ database, managed secrets, backups, monitoring, and an independently
 supervised worker. The local Compose stack is a development/demo dependency,
 not an always-on production deployment.
 
-Integration and migration tests require `TEST_DATABASE_URL` to point to a database whose name ends in `_test`. The checked-in `.env.example` already targets the Compose test service on port 5433. Migration round-trip tests intentionally move only that guarded test database through `base → head → 0004 → head → base → head`.
+Integration and migration tests require `TEST_DATABASE_URL` to point to a database whose name ends in `_test`. `make test` uses an isolated local port (55433 by default) and runs migrations before the suite. Migration round-trip tests intentionally move only that guarded test database through the tested revision sequence.
 
 ## Safe shutdown and data lifecycle
 

@@ -55,7 +55,7 @@ def condition_matches(
 
     name = condition["fact"]
     operator = condition["operator"]
-    expected = condition["value"]
+    expected = condition.get("value")
     assert isinstance(name, str)
     actual = facts.get(name)
     if operator == "present":

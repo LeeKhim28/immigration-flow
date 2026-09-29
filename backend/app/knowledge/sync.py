@@ -162,19 +162,27 @@ def _import_bundle(
             session.add(row)
             session.flush()
         source_rows[code] = row
-        revision = SourceRevision(
-            knowledge_source_id=row.id,
-            retrieved_at=_date(source.get("retrieved_at"), now),
-            reviewed_at=_date(source.get("reviewed_at"), now),
-            effective_from=_date(source.get("effective_from"), now),
-            effective_to=_date(source.get("effective_to"), now),
-            normalized_content_hash=canonical_fingerprint(source),
-            repository_snapshot_reference=f"data/official-sources/registry.yaml#{code}",
-            git_commit_sha=bundle.git_commit_sha,
-            knowledge_sync_run_id=run_id,
+        content_hash = canonical_fingerprint(source)
+        revision = session.scalar(
+            select(SourceRevision).where(
+                SourceRevision.knowledge_source_id == row.id,
+                SourceRevision.normalized_content_hash == content_hash,
+            )
         )
-        session.add(revision)
-        session.flush()
+        if revision is None:
+            revision = SourceRevision(
+                knowledge_source_id=row.id,
+                retrieved_at=_date(source.get("retrieved_at"), now),
+                reviewed_at=_date(source.get("reviewed_at"), now),
+                effective_from=_date(source.get("effective_from"), now),
+                effective_to=_date(source.get("effective_to"), now),
+                normalized_content_hash=content_hash,
+                repository_snapshot_reference=f"data/official-sources/registry.yaml#{code}",
+                git_commit_sha=bundle.git_commit_sha,
+                knowledge_sync_run_id=run_id,
+            )
+            session.add(revision)
+            session.flush()
         revision_rows[code] = revision
 
     requirement_rows: dict[str, RequirementVersion] = {}
@@ -243,6 +251,7 @@ def _import_bundle(
         select(RuleSetVersion).where(RuleSetVersion.fingerprint == release_fingerprint)
     )
     if release is None:
+        effective_at = _date(bundle.rule_set.get("effective_from"), now) or now
         release = RuleSetVersion(
             rule_set_id=rule_set.id,
             semantic_version=_text(bundle.rule_set, "version"),
@@ -251,9 +260,9 @@ def _import_bundle(
             default_outcome=_text(bundle.rule_set, "default_outcome"),
             dataset_snapshots={"datasets": list(bundle.datasets)},
             published_at=now,
-            effective_at=_date(bundle.rule_set.get("effective_from"), now) or now,
+            effective_at=effective_at,
             applicability_basis=ApplicabilityBasis.IMMIGRATION_SUBMISSION_DATE,
-            submission_cutoff_at=None,
+            submission_cutoff_at=effective_at,
             transition_policy={"re_evaluate_after_effective": True},
             status=RuleSetVersionStatus.DRAFT,
             knowledge_sync_run_id=run_id,

@@ -2,7 +2,7 @@
 
 An official-source-grounded, AI-assisted immigration case management platform for Malaysia.
 
-ImmigrationFlow is a long-term portfolio project. Its first vertical follows an international student from study preparation through graduation and a post-study or employment pathway. The platform architecture is intended to support additional visa, pass, permit, passport, and officer workflows later without pretending that the first release covers the entire immigration system.
+ImmigrationFlow is a long-term portfolio project. Its delivered first vertical demonstrates Student Pass preparation and formal handover from applicant and officer perspectives. The platform architecture can support later services without pretending that V1 covers Graduate Pass, employment pathways, or the entire immigration system.
 
 ## Product principles
 
@@ -25,8 +25,7 @@ See [docs/PROJECT_SCOPE.md](docs/PROJECT_SCOPE.md) for boundaries and success cr
 
 ```text
 apps/
-  applicant-web/       Applicant-facing experience
-  officer-dashboard/   Review and case-management experience
+  immigration-flow-web/ Unified Applicant and Officer React application
 backend/               Shared APIs and domain services
 data/
   official-sources/    Source registry and captured source metadata
@@ -40,19 +39,33 @@ docs/
 tests/                  Cross-application and acceptance tests
 ```
 
-Empty directories contain `.gitkeep` placeholders until their implementation phase begins.
-
 ## Status
 
-Project foundation, the bounded Student Pass V1 official-knowledge package, the Phase 2A logical data design, and the Phase 2B.2A–D backend vertical slice are implemented. The backend includes PostgreSQL migrations through revision 0009, immutable source, rule, assignment, evaluation, and finding history; deterministic bundle validation and rule execution; atomic synchronization; administrator review; locked activation; document-metadata capture; rule assignment at applicant handover; materialized checklists; submission-cutoff reassessment; monitoring CI; and automated tests.
+The Student Pass V1 browser demo is delivered. It combines the bounded official-knowledge package, Phase 2A logical model, Phase 2B backend vertical, and Phase 3 Applicant/Officer experience. The backend includes PostgreSQL migrations through revision 0009, immutable source, rule, assignment, evaluation, finding, event, and audit history; deterministic bundle validation and rule execution; atomic synchronization; administrator review; timed activation; rule preview before handover; assignment at the server-recorded handover boundary; submission-cutoff reassessment; and automated tests.
 
-The API exposes `/health`, `/health/database`, synthetic applicant draft/document-metadata/submission/checklist routes, and synthetic officer queue/processing routes. At applicant handover, a case records its applicable active rule-set version using `submitted_at`, then shows the resulting source-traceable checklist. It uses a demo-only actor header and is not a production authentication system. The knowledge pipeline and document endpoint store reviewed metadata and synthetic fixtures only—they do not store real applicant data or real sensitive file bytes. See [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md) for the release sequence.
+The unified web app demonstrates a synthetic Applicant requirements/readiness/handover path and an Officer queue/review/timeline path. It uses a demo-only actor header and is not production authentication. The knowledge pipeline and document endpoint store reviewed metadata and synthetic fixtures only—they do not store real applicant data or sensitive file bytes.
+
+## Demo
+
+```bash
+make demo
+```
+
+Open `http://127.0.0.1:4173`. See the [demo guide](docs/DEMO_GUIDE.md) for the walkthrough, reset behavior, testing, and production gaps.
+
+![ImmigrationFlow synthetic Student Pass landing page](docs/assets/demo/landing-desktop.png)
+
+| Applicant requirements | Officer evidence timeline |
+| --- | --- |
+| ![Source-derived Student Pass requirements in the Applicant workspace](docs/assets/demo/applicant-requirements-desktop.png) | ![Synthetic officer case with deterministic findings and audit timeline](docs/assets/demo/officer-case-timeline-desktop.png) |
+
+Additional evidence: [Applicant readiness](docs/assets/demo/applicant-readiness-desktop.png), [Officer queue](docs/assets/demo/officer-queue-desktop.png), and [Applicant mobile view](docs/assets/demo/applicant-overview-mobile.png).
 
 Start with the [Phase 2A design specification](docs/superpowers/specs/2026-08-30-phase-2a-erd-design.md), then review the [logical ERD](docs/architecture/STUDENT_PASS_V1_ERD.md), [data dictionary](docs/architecture/STUDENT_PASS_V1_DATA_DICTIONARY.md), [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md), the [Phase 2B.2D evaluation design](docs/superpowers/specs/2026-09-18-phase-2b-2d-evaluation-reassessment-design.md), and [backend setup guide](backend/README.md).
 
 ## Getting started
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), the [backend setup guide](backend/README.md), and [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md). The next product milestone is document metadata/checklists and deterministic rule evaluation against an assigned rule-set version.
+Read [CONTRIBUTING.md](CONTRIBUTING.md), the [demo guide](docs/DEMO_GUIDE.md), [architecture summary](docs/architecture/PHASE_3_PORTFOLIO_DEMO.md), [backend setup guide](backend/README.md), and [knowledge operations](docs/KNOWLEDGE_OPERATIONS.md). Future work begins with production authentication/authorization and operational safeguards—not broader visa coverage or claims of official integration.
 
 ## Disclaimer
 
